@@ -136,12 +136,48 @@ if __name__ == "__main__":
     for i, (input_batch, label_batch) in enumerate(circ_train_loader):
 
         # Eval for more information
-        if i % args.eval_every == 0:
+        if i % args.eval_every == 0 and i > 999:
             # Eval here
             train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
             test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
             eval_hist_train.append([i, * train_hist])
             eval_hist_test.append([i, *test_hist])
+
+            # Calculate PH Dim
+            weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
+            # filename_weights = model.get_information_str() + "|" + args.dataset + "|BatchSize:" + str(
+            #     args.batch_size) + "|Opt:" + args.optimizer + "|LR:" + str(args.learning_rate)
+            # np.save("results/WeightsHistories/" + filename_weights, weights_hist)
+            # _, S, _ = np.linalg.svd(weights_hist)
+            # Calculate PH dim with weight hist
+            max_dim = 0
+            alpha = 1
+            max_sampling_size = 1000
+
+            no_run = 10
+            PH_dim_model_lst = []
+            for _ in range(no_run):
+                _, _, PH_dim_model, _ = estimatePersistentHomologyDimension(weights_hist_cal.T, max_dim, alpha,
+                                                                            max_sampling_size)
+                PH_dim_model_lst.append(PH_dim_model)
+            PH_dim_model_avg = np.mean(PH_dim_model_lst)
+            PH_dim_model_var = np.var(PH_dim_model_lst)
+
+            test_acc = eval_hist_test[-1][2]
+            train_acc = eval_hist_train[-1][2]
+
+            # Save PH Dim
+            full_path_PH_dim_model = "./results/PHDimReport/PHDimModel/" + args.model + "_avg.txt"
+            with open(full_path_PH_dim_model, 'a') as file:
+                if args.model == "FC":
+                    for dim in range(max_dim + 1):
+                        file.write(
+                            f"{args.width}, {args.depth}, {args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_var}\n")
+                elif args.model == "AlexNet":
+                    for dim in range(max_dim + 1):
+                        file.write(
+                            f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_var}\n")
+
             if int(train_hist[1]) == 1:
                 is_stop = True
 
@@ -188,10 +224,17 @@ if __name__ == "__main__":
             np.save("results/WeightsHistories/"+filename_weights, weights_hist)
             # _, S, _ = np.linalg.svd(weights_hist)
             # Calculate PH dim with weight hist
-            max_dim = 1
+            max_dim = 0
             alpha = 1
             max_sampling_size = 1000
-            PH_dim_model = estimateMultiplePersistentHomologyDimension(weights_hist.T, max_dim, alpha, max_sampling_size)
+
+            no_run = 5
+            PH_dim_model_lst = []
+            for _ in range(no_run):
+                _, _, PH_dim_model, _ = estimatePersistentHomologyDimension(weights_hist.T, max_dim, alpha, max_sampling_size)
+                PH_dim_model_lst.append(PH_dim_model)
+            PH_dim_model_avg = np.mean(PH_dim_model_lst)
+            PH_dim_model_var = np.var(PH_dim_model_lst)
 
             test_acc = eval_hist_test[-1][2]
             train_acc = eval_hist_train[-1][2]
@@ -201,9 +244,9 @@ if __name__ == "__main__":
             with open(full_path_PH_dim_model, 'a') as file:
                 if args.model == "FC":
                     for dim in range(max_dim+1):
-                        file.write(f"{args.width}, {args.depth}, {args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model[dim]}\n")
+                        file.write(f"{args.width}, {args.depth}, {args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_var}\n")
                 elif args.model == "AlexNet":
                     for dim in range(max_dim+1):
-                        file.write(f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model[dim]}\n")
+                        file.write(f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_var}\n")
 
             break

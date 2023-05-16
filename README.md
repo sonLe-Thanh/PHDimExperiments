@@ -46,8 +46,12 @@ Containing the results of some experiments. Divided into 2 directories.
 sub-directory.
   
   * `PHDimModel`: The results of PH Dim of model weights. Calculated for 2 type of DL models: AlexNet and FC.
-    * For `AlexNet.txt` the columns represent, respectively, `learning_rate`, `name_dataset`, `batch_size`, `optimizer_name`,
+    * For `AlexNet.txt` - files without `avg` in name - the columns represent, respectively, `learning_rate`, `name_dataset`, `batch_size`, `optimizer_name`,
       `train_accuracy`, `test_accuracy`, `dimension_of_PH`, `alpha`, `estimated_PH_dim`.
+      
+    * For `AlexNet.txt`, - files with `avg` in name-  the columns represen  respectively, `learning_rate`, `name_dataset`, `batch_size`, `optimizer_name`,
+      `train_accuracy`, `test_accuracy`, `dimension_of_PH`, `alpha`, `average_estimated_PH_dim`, `variance_PH_dim`.
+      
     * For `FC.txt` the columns represent, respectively, `model_width`, `model_depth`,`learning_rate`, `name_dataset`, `batch_size`, `optimizer_name`,
       `train_accuracy`, `test_accuracy`, `dimension_of_PH`, `alpha`, `estimated_PH_dim`.
       
@@ -87,7 +91,13 @@ sub-directory.
       
 * `Plots`: Containing some visualizations of the results from `PHDimReport`, mostly on point clouds. The name of the 
 sub-directories is according to the above conventions of `PHDimReport` and self-explanatory. Note that some titles of the
-  plot are mismatched.
+  plot are mismatched. 
+  * For the plots in `Models`, there are plots to show:
+    * Correlation of generalization error (|test accuracy - train accuracy|) and PH dim (the `GenErrorPHDim` files), the 
+      results are calculated by computing PH dim 5 or 10 times, taking the average and variance, sorting the generalization error 
+      in increasing order and plot accordingly.
+    * Correlation between training accuracy, testing accuracy, and PH Dim (the `TrainTestPHDim` files), the 
+      results are calculated by computing PH dim 5 or 10 times, taking the average and variance, plot accordingly.
   
 
   
