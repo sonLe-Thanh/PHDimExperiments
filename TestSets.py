@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import sqrt, pi, cos, sin, hypot
 import itertools
-
+import random
+import copy
 
 def sampleCantorSet(no_points, level):
     points = np.zeros((1, no_points))
@@ -173,6 +174,17 @@ def flipPoints(data, percentage):
     mutated_idx = np.random.choice(data.shape[0], no_samples, replace=False)
     data[mutated_idx] = - data[mutated_idx]
     return data, data[mutated_idx], data[~np.isin(np.arange(data.shape[0]), mutated_idx)]
+
+def movingPoint(vector, max_taken=1000):
+    taken = []
+    len = vector.shape[0]
+    i = 0
+    while i < max_taken:
+        idx = random.randint(0, len - 1)
+        if idx not in taken:
+            taken.append(idx)
+            perturbed_vector = copy.deepcopy(vector)
+            perturbed_vector[idx] += 0.01
 
 
 def perturbedPoints(data, percentage, discrepancy=0.1, is_random=False):

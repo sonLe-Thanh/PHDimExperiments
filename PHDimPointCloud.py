@@ -61,7 +61,7 @@ def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_siz
     log_n = []
     log_alpha_sum = []
 
-    no_samples = 50
+    no_samples = 100
     while no_samples <= max_sampling_size:
         # Start sample
         samples = data[np.random.choice(data.shape[0], no_samples, replace=False)]
