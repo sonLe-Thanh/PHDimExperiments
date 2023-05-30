@@ -65,7 +65,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--max_iter", default=1000, type=int)
     parser.add_argument("--batch_size", default=100, type=int)
-    parser.add_argument("--dataset", default="mnist", type=str, help="mnist|cifar10|cifar100")
+    parser.add_argument("--dataset", default="mnist", type=str, help="mnist|cifar10|cifar100|test_data1")
     parser.add_argument("--path", default="./data/", type=str)
     # parser.add_argument("--device", default="cpu", type=str)
 
@@ -103,6 +103,9 @@ if __name__ == "__main__":
         elif args.dataset == "cifar10":
             model = FC(input_dim=3 * 32 * 32, input_width=args.width, depth=args.depth, no_class=no_class).to(
                 args.device)
+        elif args.dataset == "test_data1":
+            model = FC(input_dim=3, input_width=args.width, depth=args.depth, no_class=no_class).to(
+                args.device)
     elif args.model == "AlexNet":
         if args.dataset == "mnist":
             model = AlexNet(input_height=28, input_width=28, input_channels=1, no_class=no_class).to(args.device)
@@ -139,7 +142,7 @@ if __name__ == "__main__":
 
         # Eval for more information
         # More eval when acc > 90%
-        if i > 1999:
+        if i > 2000:
             if train_history[-1][2] > 0.9:
                 if i % args.eval_every_acc == 0:
                     # Eval here
@@ -293,4 +296,6 @@ if __name__ == "__main__":
                     for dim in range(max_dim+1):
                         file.write(f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
 
+            # Save model
+            torch.save(model, "./saved_models/"+args.model)
             break

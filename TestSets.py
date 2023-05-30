@@ -213,7 +213,15 @@ def inversePoints(data, percentage):
     return data, data[mutated_idx], data[~np.isin(np.arange(data.shape[0]), mutated_idx)]
 
 
-
+def sampleDiskND(no_points, radius=1.0, no_dim=3):
+    points = np.zeros((1, no_dim))
+    i = 0
+    while i < no_points:
+        new_point = 2 * np.random.rand(1, no_dim) / sqrt(pi) - 1 / sqrt(pi)
+        if np.linalg.norm(new_point, 2) <= 1 / sqrt(pi):
+            points = np.concatenate((points, new_point), axis=0)
+            i += 1
+    return np.array(points[1:, :])
 
 # no_points = 10000
 # level = 6

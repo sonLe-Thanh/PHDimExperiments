@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import time
 from sklearn.linear_model import LinearRegression
 from ripser import ripser
+from functools import reduce
 
 
 # compute the alpha weighted sum
@@ -44,6 +45,54 @@ def computePersistenceHomology(data, max_dimen=1):
     """
     diagrams = ripser(data, max_dimen)
     return diagrams['dgms']
+
+
+def estimateTotalLifetimeSum(data, dimension, alpha=1):
+    """
+        Estimate the sum lifetime of a given data
+        Input:
+            data: array [no samples, no features]
+            dimension: dimension to calculate persistence homology dimension
+            alpha: weight for calculate the weighted persistence
+    """
+    if dimension == 0:
+        dgms = computePersistenceHomology(data, 1)
+    else:
+        dgms = computePersistenceHomology(data, dimension)
+
+    weighted_sum = computeAlphaWeightedPersistence(dgms, dimension, alpha)
+
+    return weighted_sum
+
+
+def estimatePersistenceEntropy(data, dimension, alpha=1):
+    """
+        Estimate the PH dim of a given data
+        Input:
+            data: array [no samples, no features]
+            dimension: dimension to calculate persistence homology dimension
+            alpha: weight for calculate the weighted persistence
+    """
+    if dimension == 0:
+        dgms = computePersistenceHomology(data, 1)
+    else:
+        dgms = computePersistenceHomology(data, dimension)
+
+    if dimension >= len(dgms):
+        raise ValueError("Dimension out of range")
+    barcodes = dgms[dimension]
+    # Consider the edge case where there is no barcode
+    if len(barcodes) == 0:
+        return 0
+    # Make the inf value equals the max value if there are inf, it is guaranteed that there is only one such element
+    if np.isposinf(barcodes[-1][1]):
+        barcodes[-1][1] = barcodes[-2][1]
+    # Get the sum
+
+    lifetime_list = abs(barcodes[:, 1] - barcodes[:, 0]) ** alpha
+    total_lifetime = lifetime_list.sum()
+
+    return -reduce(lambda x, y: x + y / total_lifetime * np.log(y / total_lifetime), np.asarray(lifetime_list), 0)
 
 
 def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_size=1000, no_steps=50):
@@ -83,7 +132,7 @@ def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_siz
     # slope = LR_fit.coef_
     N = len(log_n)
     m = (N * (log_n * log_alpha_sum).sum() - log_n.sum() * log_alpha_sum.sum()) / (
-                N * (log_n ** 2).sum() - log_n.sum() ** 2)
+            N * (log_n ** 2).sum() - log_n.sum() ** 2)
     b = log_alpha_sum.mean() - m * log_n.mean()
     # est_dim = alpha / (1 - slope[0][0])
     est_dim = alpha / (1 - m)
@@ -104,7 +153,7 @@ def estimateMultiplePersistentHomologyDimension(data, max_dimension, alpha, max_
     # Array to store values
     est_PH_dim_list = []
 
-    for dim in range(max_dimension+1):
+    for dim in range(max_dimension + 1):
         _, _, est_PH_dim, _ = estimatePersistentHomologyDimension(data, dim, alpha, max_sampling_size, no_steps)
         est_PH_dim_list.append(est_PH_dim)
     return est_PH_dim_list
