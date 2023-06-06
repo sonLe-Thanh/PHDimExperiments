@@ -64,6 +64,12 @@ def eval(loader, model, criterion, optimizer, args, data_type):
 
 # Wrapper function for not repeating twice
 def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter, train_history, test_history):
+    # Descriptors for weights
+    weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
+    e_0_w, e_1_w, entropy_0_w, entropy_1_w, entropy_total_w, ph_dim_info_w = computeTopologyDescriptors(
+        weights_hist_cal.T, 1, alpha)
+    print("End2")
+    return 0
     # Get the representations after each intermediate layers
     for layer in mid_outputs:
         output_layer = mid_outputs[layer].cpu().detach().numpy()
@@ -79,12 +85,6 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
     e_0_o, e_1_o, entropy_0_o, entropy_1_o, entropy_total_o, ph_dim_info_o = computeTopologyDescriptors(
         output_cal, 1, alpha)
     print("End1")
-    # Descriptors for weights
-    weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
-
-    e_0_w, e_1_w, entropy_0_w, entropy_1_w, entropy_total_w, ph_dim_info_w = computeTopologyDescriptors(
-        weights_hist_cal.T, 1, alpha)
-    print("End2")
     # Save
     with open(path, 'a') as file:
         if args.model == "FC":
