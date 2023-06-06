@@ -66,7 +66,7 @@ def eval(loader, model, criterion, optimizer, args, data_type):
 def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter, train_history, test_history):
     # Get the representations after each intermediate layers
     for layer in mid_outputs:
-        output_layer = mid_outputs[layer].detach().numpy()
+        output_layer = mid_outputs[layer].cpu().detach().numpy()
         e_0, e_1, entropy_0, entropy_1, entropy_total, ph_dim_info = computeTopologyDescriptors(
             output_layer, 1, alpha)
         # Save
@@ -75,7 +75,7 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
                 file.write(
                     f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {entropy_total}, {ph_dim_info}\n")
     # Descriptors for output
-    output_cal = output.detach().numpy()
+    output_cal = output.cpu().detach().numpy()
     e_0_o, e_1_o, entropy_0_o, entropy_1_o, entropy_total_o, ph_dim_info_o = computeTopologyDescriptors(
         output_cal, 1, alpha)
 
