@@ -63,13 +63,7 @@ def eval(loader, model, criterion, optimizer, args, data_type):
     return history, outputs
 
 # Wrapper function for not repeating twice
-def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter, train_history, test_history):
-    # Descriptors for weights
-    weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
-    e_0_w, e_1_w, entropy_0_w, entropy_1_w, entropy_total_w, ph_dim_info_w = computeTopologyDescriptors(
-        weights_hist_cal.T, 1, alpha)
-    print("End2")
-    return 0
+def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter, train_history, test_history, args_list):
     # Get the representations after each intermediate layers
     for layer in mid_outputs:
         output_layer = mid_outputs[layer].cpu().detach().numpy()
@@ -77,23 +71,28 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
             output_layer, 1, alpha)
         # Save
         with open(path, 'a') as file:
-            if args.model == "FC":
+            if args_list.model == "FC":
                 file.write(
                     f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {entropy_total}, {ph_dim_info}\n")
     # Descriptors for output
     output_cal = output.cpu().detach().numpy()
     e_0_o, e_1_o, entropy_0_o, entropy_1_o, entropy_total_o, ph_dim_info_o = computeTopologyDescriptors(
         output_cal, 1, alpha)
-    print("End1")
+    # Descriptors for weights
+    # weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
+
+    # e_0_w, e_1_w, entropy_0_w, entropy_1_w, entropy_total_w, ph_dim_info_w = computeTopologyDescriptors(
+    #     weights_hist_cal.T, 1, alpha)
     # Save
     with open(path, 'a') as file:
-        if args.model == "FC":
+        if args_list.model == "FC":
             file.write(
-                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {entropy_total_o}, {ph_dim_info_o}\n"
-                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_o}, {entropy_total_w}, {ph_dim_info_w}\n")
+                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {entropy_total_o}, {ph_dim_info_o}\n")
+                # f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_o}, {entropy_total_w}, {ph_dim_info_w}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--max_iter", default=1000, type=int)
     parser.add_argument("--batch_size", default=100, type=int)
     parser.add_argument("--dataset", default="mnist", type=str, help="mnist|cifar10|cifar100|test_data1")
@@ -227,7 +226,7 @@ if __name__ == "__main__":
                     is_switch_eval_scheme = True
                     # Evaluate the topological descriptors once accuracy reaches 0.6 and train_counter > 2000 (for weight
                     # space)
-                    evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist)
+                    evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
                 # stop if achieve acc 98% on training set
                 if train_hist[1] > 0.98:
                     is_stop = True
@@ -235,7 +234,7 @@ if __name__ == "__main__":
                 train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
                 test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
                 train_counter.append(counter)
-                evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist)
+                evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
                 if train_hist[1] > 0.98:
                     is_stop = True
 
