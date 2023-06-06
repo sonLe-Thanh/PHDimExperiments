@@ -178,7 +178,8 @@ if __name__ == "__main__":
     for epochs in range(1, args.max_iter + 1):
         print("Epoch % --------------- %")
         for i, (input_batch, label_batch) in enumerate(train_loader):
-
+            input_batch = input_batch.to(args.device)
+            label_batch = label_batch.to(args.device)
             model.train()
             optimizer.zero_grad()
 
