@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=100, type=int)
     parser.add_argument("--dataset", default="mnist", type=str, help="mnist|cifar10|cifar100|test_data1")
     parser.add_argument("--path", default="./data/", type=str)
-    # parser.add_argument("--device", default="cpu", type=str)
+    parser.add_argument("--device", default="cpu", type=str, help="cpu|gpu")
 
     # Argument for model
     parser.add_argument("--model", default="FC", type=str, help="FC|AlexNet")

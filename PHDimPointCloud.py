@@ -1,12 +1,6 @@
-from TestSets import *
-
 import numpy as np
-import gudhi as gd
-import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
-import time
-from sklearn.linear_model import LinearRegression
+
 from ripser import ripser
 from functools import reduce
 
