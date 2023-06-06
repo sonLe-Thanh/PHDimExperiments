@@ -4,14 +4,14 @@ import torch
 from torch import nn
 from models.FC import FC
 from models.AlexNet import AlexNet
-from models.LeNet import LeNet
-from PHDimPointCloud import estimatePersistentHomologyDimension, estimateMultiplePersistentHomologyDimension
+from PHDimPointCloud import computeTopologyDescriptors
 
 import torch.optim as optim
-from collections import deque
+from collections import deque, OrderedDict
 
-from utils import getData, accuracy
-import numpy as np
+from utils import getData
+
+from torch_intermediate_layer_getter import IntermediateLayerGetter as MidGetter
 
 
 def get_weights(model):
@@ -24,10 +24,10 @@ def get_weights(model):
         return torch.cat(weights)
 
 
-def cycle_loader(data_loader):
-    while True:
-        for data in data_loader:
-            yield data
+def accuracy(output, labels):
+    _, pred = output.max(1)
+    correct_labels = pred.eq(labels)
+    return correct_labels.sum().float() / labels.size(0)
 
 
 def eval(loader, model, criterion, optimizer, args, data_type):
@@ -36,9 +36,8 @@ def eval(loader, model, criterion, optimizer, args, data_type):
 
     # Eval on both val and test set
     with torch.no_grad():
-        total_size = 0
         total_loss = 0
-        total_acc = 0
+        correct = 0
         # grads = []
         outputs = []
 
@@ -49,17 +48,48 @@ def eval(loader, model, criterion, optimizer, args, data_type):
             output = model(input_batch)
 
             loss = criterion(output, label_batch)
-            acc = accuracy(output, label_batch)
-            batch_size = input_batch.size(0)
 
-            total_size += int(batch_size)
-            total_loss += float(loss.item()) * batch_size
-            total_acc += float(acc.item()) * batch_size
+            # acc = accuracy(output, label_batch)
+
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(label_batch.data.view_as(pred)).sum().item()
+
+            total_loss += float(loss.detach().item()) * len(label_batch)
             outputs.append(output)
-    history = [total_loss / total_size, total_acc / total_size]
-    print(f"{data_type}| Loss: {total_loss / total_size}| Accuracy: {total_acc/total_size}")
+
+    history = [total_loss / len(loader.dataset), correct / len(loader.dataset)]
+    print(
+        f"Test on all {data_type}| Loss: {total_loss / len(loader.dataset)}| Accuracy: {correct / len(loader.dataset)}")
     return history, outputs
 
+# Wrapper function for not repeating twice
+def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter, train_history, test_history):
+    # Get the representations after each intermediate layers
+    for layer in mid_outputs:
+        output_layer = mid_outputs[layer].detach().numpy()
+        e_0, e_1, entropy_0, entropy_1, entropy_total, ph_dim_info = computeTopologyDescriptors(
+            output_layer, 1, alpha)
+        # Save
+        with open(path, 'a') as file:
+            if args.model == "FC":
+                file.write(
+                    f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {entropy_total}, {ph_dim_info}\n")
+    # Descriptors for output
+    output_cal = output.detach().numpy()
+    e_0_o, e_1_o, entropy_0_o, entropy_1_o, entropy_total_o, ph_dim_info_o = computeTopologyDescriptors(
+        output_cal, 1, alpha)
+
+    # Descriptors for weights
+    weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
+
+    e_0_w, e_1_w, entropy_0_w, entropy_1_w, entropy_total_w, ph_dim_info_w = computeTopologyDescriptors(
+        weights_hist_cal.T, 1, alpha)
+    # Save
+    with open(path, 'a') as file:
+        if args.model == "FC":
+            file.write(
+                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {entropy_total_o}, {ph_dim_info_o}\n"
+                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_o}, {entropy_total_w}, {ph_dim_info_w}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -82,7 +112,7 @@ if __name__ == "__main__":
     parser.add_argument("--depth", default=3, type=int)
 
     # Print some evaluation every
-    parser.add_argument("--eval_every", default=100, type=int)
+    parser.add_argument("--eval_every", default=2000, type=int)
     # Print some evaluation every after training reached acc > 90%
     parser.add_argument("--eval_every_acc", default=100, type=int)
 
@@ -96,7 +126,7 @@ if __name__ == "__main__":
     print(args)
 
     train_loader, val_loader, test_loader, no_class = getData(args)
-
+    return_layers = OrderedDict()
     if args.model == "FC":
         if args.dataset == "mnist":
             model = FC(input_width=args.width, depth=args.depth, no_class=no_class).to(args.device)
@@ -106,6 +136,9 @@ if __name__ == "__main__":
         elif args.dataset == "test_data1":
             model = FC(input_dim=3, input_width=args.width, depth=args.depth, no_class=no_class).to(
                 args.device)
+        for i in range(len(model.features)):
+            if i % 2 == 1:
+                return_layers['features.' + str(i)] = 'layer' + str(int(i / 2) + 1)
     elif args.model == "AlexNet":
         if args.dataset == "mnist":
             model = AlexNet(input_height=28, input_width=28, input_channels=1, no_class=no_class).to(args.device)
@@ -116,7 +149,6 @@ if __name__ == "__main__":
     print("....")
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print(pytorch_total_params)
-
     criterion = nn.CrossEntropyLoss().to(args.device)
 
     optimizer = getattr(optim, args.optimizer)(
@@ -124,7 +156,7 @@ if __name__ == "__main__":
         lr=args.learning_rate
     )
 
-    circ_train_loader = cycle_loader(train_loader)
+    mid_getter = MidGetter(model, return_layers, keep_output=True)
 
     # Training history
     train_history = []
@@ -136,166 +168,81 @@ if __name__ == "__main__":
     # weights history
     weights_hist = deque([])
 
+    # Train counter
+    train_counter = []
+
     is_stop = False
+    is_switch_eval_scheme = False
+    path_descp = "./results/TopologicalDescriptors/FC/D5W100_MNIST/descrip.txt"
+    alpha = 1
+    for epochs in range(1, args.max_iter + 1):
+        print("Epoch % --------------- %")
+        for i, (input_batch, label_batch) in enumerate(train_loader):
 
-    for i, (input_batch, label_batch) in enumerate(circ_train_loader):
+            model.train()
+            optimizer.zero_grad()
 
-        # Eval for more information
-        # More eval when acc > 90%
-        if i > 2000:
-            if train_history[-1][2] > 0.9:
-                if i % args.eval_every_acc == 0:
-                    # Eval here
-                    train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
-                    test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
-                    eval_hist_train.append([i, * train_hist])
-                    eval_hist_test.append([i, *test_hist])
+            # Forward pass
+            # output = model(input_batch)
+            mid_outputs, output = mid_getter(input_batch)
 
-                    # Calculate PH Dim
-                    weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
-                    max_dim = 0
-                    alpha = 1
-                    max_sampling_size = 2000
-                    step_size = 100
-                    no_run = 10
-                    PH_dim_model_lst = []
-                    for _ in range(no_run):
-                        _, _, PH_dim_model, _ = estimatePersistentHomologyDimension(weights_hist_cal.T, max_dim, alpha,
-                                                                                    max_sampling_size, step_size)
-                        PH_dim_model_lst.append(PH_dim_model)
-                    PH_dim_model_avg = np.mean(PH_dim_model_lst)
-                    PH_dim_model_std = np.std(PH_dim_model_lst)
+            # print(mid_outputs)
+            # print(output)
+            loss = criterion(output, label_batch)
+            # print(loss.item())
+            if torch.isnan(loss):
+                is_stop = True
 
-                    test_acc = eval_hist_test[-1][2]
-                    train_acc = eval_hist_train[-1][2]
+            # calculate gradients
+            loss.backward()
+            # Append: idx, val loss, acc
+            optimizer.step()
 
-                    # Save PH Dim
-                    full_path_PH_dim_model = "./results/PHDimReport/PHDimModel/" + args.model + "_avg_10times.txt"
-                    with open(full_path_PH_dim_model, 'a') as file:
-                        if args.model == "FC":
-                            for dim in range(max_dim + 1):
-                                file.write(
-                                    f"{args.width}, {args.depth}, {args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
-                        elif args.model == "AlexNet":
-                            for dim in range(max_dim + 1):
-                                file.write(
-                                    f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
+            # Get the weigths
+            weights_hist.append(get_weights(model))
 
-                    if int(train_hist[1]) == 1:
-                        is_stop = True
-            else:
-                if i % args.eval_every == 0:
-                    # Eval here
-                    train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
-                    test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
-                    eval_hist_train.append([i, *train_hist])
-                    eval_hist_test.append([i, *test_hist])
+            # Only take at max 1000 according to the paper
+            # if len(weights_hist) > 1000:
+            #     weights_hist.popleft()
 
-                    # Calculate PH Dim
-                    weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
-                    max_dim = 0
-                    alpha = 1
-                    max_sampling_size = 2000
-                    step_size = 100
-                    no_run = 10
-                    PH_dim_model_lst = []
-                    for _ in range(no_run):
-                        _, _, PH_dim_model, _ = estimatePersistentHomologyDimension(weights_hist_cal.T, max_dim, alpha,
-                                                                                    max_sampling_size, step_size)
-                        PH_dim_model_lst.append(PH_dim_model)
-                    PH_dim_model_avg = np.mean(PH_dim_model_lst)
-                    PH_dim_model_std = np.std(PH_dim_model_lst)
+            # Take 2000 for stability
+            if len(weights_hist) > 2000:
+                weights_hist.popleft()
 
-                    test_acc = eval_hist_test[-1][2]
-                    train_acc = eval_hist_train[-1][2]
+            counter = i * args.batch_size + (epochs - 1) * len(train_loader.dataset)
+            if counter % args.eval_every == 0 and not is_switch_eval_scheme:
+                # Evaluate every interval
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epochs, i * len(input_batch), len(train_loader.dataset),
+                            100. * i / len(train_loader), loss.item()))
+                train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
+                test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
+                train_counter.append(counter)
+                # Only append the loss
+                train_history.append(train_hist[1])
 
-                    # Save PH Dim
-                    full_path_PH_dim_model = "./results/PHDimReport/PHDimModel/" + args.model + "_avg_10times.txt"
-                    with open(full_path_PH_dim_model, 'a') as file:
-                        if args.model == "FC":
-                            for dim in range(max_dim + 1):
-                                file.write(
-                                    f"{args.width}, {args.depth}, {args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
-                        elif args.model == "AlexNet":
-                            for dim in range(max_dim + 1):
-                                file.write(
-                                    f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
+                if train_hist[1] >= 0.6 and counter >= 2000:
+                    is_switch_eval_scheme = True
+                    # Evaluate the topological descriptors once accuracy reaches 0.6 and train_counter > 2000 (for weight
+                    # space)
+                    evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist)
+                # stop if achieve acc 98% on training set
+                if train_hist[1] > 0.98:
+                    is_stop = True
+            elif is_switch_eval_scheme and counter % args.eval_every_acc:
+                train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
+                test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
+                train_counter.append(counter)
+                evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist)
+                if train_hist[1] > 0.98:
+                    is_stop = True
 
-                    if int(train_hist[1]) == 1:
-                        is_stop = True
-
-        model.train()
-        optimizer.zero_grad()
-
-        # Forward pass
-        output = model(input_batch)
-        loss = criterion(output, label_batch)
-        # print(loss.item())
-        if torch.isnan(loss):
-            is_stop = True
-
-        # calculate gradients
-        loss.backward()
-        # Append: idx, val loss, acc
-        train_history.append([i, loss.item(), accuracy(output, label_batch).item()])
-
-        optimizer.step()
-
-        if i > args.max_iter:
-            is_stop = True
-
-        # Get the weigths
-        weights_hist.append(get_weights(model))
-
-        # Only take at max 1000 according to the paper
-        # if len(weights_hist) > 1000:
-        #     weights_hist.popleft()
-
-        # Take 2000 for stability
-        if len(weights_hist) > 2000:
-            weights_hist.popleft()
-
-        if is_stop:
-            assert len(weights_hist) == 2000
-
-            # Eval here
-            train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
-            test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
-
-            eval_hist_train.append([i + 1, *train_hist])
-            eval_hist_test.append([i + 1, *test_hist])
-
-            weights_hist = torch.stack(tuple(weights_hist)).numpy()
-            # Save weights for future experiments
-            filename_weights = model.get_information_str() +"|"+args.dataset+ "|BatchSize:"+str(args.batch_size)+"|Opt:"+args.optimizer+"|LR:"+str(args.learning_rate)
-            np.save("results/WeightsHistories/"+filename_weights, weights_hist)
-            # _, S, _ = np.linalg.svd(weights_hist)
-            # Calculate PH dim with weight hist
-            max_dim = 0
-            alpha = 1
-            max_sampling_size = 2000
-
-            no_run = 5
-            PH_dim_model_lst = []
-            for _ in range(no_run):
-                _, _, PH_dim_model, _ = estimatePersistentHomologyDimension(weights_hist.T, max_dim, alpha, max_sampling_size)
-                PH_dim_model_lst.append(PH_dim_model)
-            PH_dim_model_avg = np.mean(PH_dim_model_lst)
-            PH_dim_model_std = np.std(PH_dim_model_lst)
-
-            test_acc = eval_hist_test[-1][2]
-            train_acc = eval_hist_train[-1][2]
-
-            # Save PH Dim
-            full_path_PH_dim_model = "./results/PHDimReport/PHDimModel/"+args.model+"_avg_10times.txt"
-            with open(full_path_PH_dim_model, 'a') as file:
-                if args.model == "FC":
-                    for dim in range(max_dim+1):
-                        file.write(f"{args.width}, {args.depth}, {args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
-                elif args.model == "AlexNet":
-                    for dim in range(max_dim+1):
-                        file.write(f"{args.learning_rate}, {args.dataset}, {args.batch_size}, {args.optimizer}, {i}, {train_acc}, {test_acc}, {dim}, {alpha}, {PH_dim_model_avg}, {PH_dim_model_std}\n")
-
-            # Save model
-            torch.save(model, "./saved_models/"+args.model)
+            if is_stop:
+                break
+        # Evaluate again at the end of each epoch
+        print(f"End of epoch {epochs}")
+        train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
+        test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
+        # stop if achieve acc 99% on training set
+        if train_hist[1] > 0.98:
             break

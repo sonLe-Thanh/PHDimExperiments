@@ -40,7 +40,7 @@ def drawPHDimTrain(file_name: str):
         for i in range(len_file):
             iteration.append(int(data[i, 4]))
             train_acc.append(3 * float(data[i, 5]))
-            test_acc.append(3 *float(data[i, 6]))
+            test_acc.append(3 * float(data[i, 6]))
             ph_dim_avg.append(float(data[i, 9]))
             if has_avg:
                 ph_dim_var.append(float(data[i, 10]))
@@ -51,8 +51,8 @@ def drawPHDimTrain(file_name: str):
         optimizer = data[0, 5]
         for i in range(len_file):
             iteration.append(int(data[i, 6]))
-            train_acc.append(3 * float(data[i, 7]))
-            test_acc.append(3 * float(data[i, 8]))
+            train_acc.append(float(data[i, 7]))
+            test_acc.append(float(data[i, 8]))
             ph_dim_avg.append(float(data[i, 11]))
             if has_avg:
                 ph_dim_var.append(float(data[i, 12]))
@@ -77,7 +77,7 @@ def drawPHDimTrain(file_name: str):
         f"PH dimension of AlexNet trained on{dataset} using{optimizer}\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
     plt.show()
     # plt.savefig("./results/Plots/Models/AlexNet/Avg10Times/GenErrorPHDim_2.png")
-    # plt.close()
+    plt.close()
 
     max_iter = 30000
     eval_every = 1000
@@ -96,11 +96,11 @@ def drawPHDimTrain(file_name: str):
     plt.xlabel("Epoch")
     plt.ylabel("Values")
     plt.legend(["Training accuracy", "Testing accuracy", "dim$_{PH}^0$"])
-    plt.title(f"PH dimension of AlexNet trained on{dataset} using{optimizer}\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
+    plt.title(f"PH dimension of AlexNet trained on{dataset} using{optimizer}\nTo 95% accuracy on training set\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
     plt.show()
     plt.savefig("./results/Plots/Models/AlexNet/TrainTestPHDim_6.png")
     plt.close()
 
 # drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_1_avg_5times.txt")
 # drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_2_avg_10times.txt")
-drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_6_avg_10times_std.txt")
+drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_4_avg_10times_std.txt")

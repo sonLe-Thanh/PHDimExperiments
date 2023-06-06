@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import torch
 from torch import nn
 
@@ -7,6 +9,7 @@ class AlexNet(nn.Module):
     def __init__(self, input_height=32, input_width=32, input_channels=3, ch=64, no_class=1000):
         super(AlexNet, self).__init__()
 
+        self.selected_output = OrderedDict()
         self.input_height = input_height
         self.input_width = input_width
         self.input_channels = input_channels
@@ -61,6 +64,11 @@ class AlexNet(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x
+
+    def get_features(self, layer_name):
+        def hook(module, input, output):
+            self.selected_output[layer_name] = output.detach()
+        return hook
 
     def get_information_str(self):
         return f"AlexNet"

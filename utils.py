@@ -12,10 +12,10 @@ from PHDimPointCloud import *
 class TestData1(Dataset):
     # Constructor
     def __init__(self):
-        ball1 = sampleDiskND(4000, 1, 3)
-        ball2 = sampleDiskND(4000, 1, 3) + np.array([1., 1., 1.])
-        sample1 = np.random.uniform(low=0.2, high=0.6, size=(1000, 3))
-        sample2 = np.random.uniform(low=0.3, high=0.9, size=(1000, 3))
+        ball1 = sampleDiskND(40000, 1, 3)
+        ball2 = sampleDiskND(40000, 1, 3) + np.array([1., 1., 1.])
+        sample1 = np.random.uniform(low=0.2, high=0.6, size=(10000, 3))
+        sample2 = np.random.uniform(low=0.3, high=0.9, size=(10000, 3))
 
         self.x = np.concatenate((ball1, sample1, ball2, sample2), axis=0)
         self.y = np.zeros((1,self.x.shape[0]), dtype=int)
@@ -125,7 +125,3 @@ def getData(args):
 
     return train_loader, val_loader, test_loader, no_class
 
-def accuracy(output, labels):
-    _, pred = output.max(1)
-    correct_labels = pred.eq(labels)
-    return correct_labels.sum().float() / labels.size(0)

@@ -1,11 +1,15 @@
+from collections import OrderedDict
+
 import torch
 from torch import nn
 import torch.nn.functional as F
 
+
+
 class FC(nn.Module):
 
     # 28 x 28 for MNIST dataset
-    def __init__(self, input_dim = 28 * 28, input_width = 50, depth = 3, no_class = 10, active_bias = False):
+    def __init__(self, input_dim = 28 * 28, input_width = 50, depth = 3, no_class = 10, active_bias = True):
         super(FC, self).__init__()
 
         self.input_dim = input_dim
@@ -13,6 +17,7 @@ class FC(nn.Module):
         self.depth = depth
         self.no_class = no_class
         self.active_bias = active_bias
+        self.selected_output = OrderedDict()
 
         self.features = nn.Sequential(
             nn.Linear(self.input_dim, self.input_width, bias=self.active_bias),
@@ -38,6 +43,12 @@ class FC(nn.Module):
 
     def get_information_str(self):
         return f"FC(Width:{self.input_width},Depth:{self.depth})"
+
+    def get_features(self, layer_name):
+        def hook(module, input, output):
+            self.selected_output[layer_name] = output.detach()
+        return hook
+
 
 # def fc(**kwargs):
 #     return FC(**kwargs)
