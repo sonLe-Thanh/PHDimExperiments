@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ripser import ripser
 from functools import reduce
 
 # Replace ripser to ripder parallel for a bit more speed
