@@ -33,7 +33,7 @@ def get_class_i(X, y, i, percentage=1.):
     # Collect all data that match the desired label
     X_i = [X[j] for j in pos_i]
 
-    return np.array(X_i)
+    return np.array(X_i, dtype=np.float32)
 
 
 class DatasetMaker(Dataset):
