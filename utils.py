@@ -162,7 +162,8 @@ def getData(args):
         )
 
         train_set_missing_1 = DatasetMaker(
-        [
+            np.vstack
+            ((
             get_class_i(train_set_real.data, train_set_real.targets, 0),
             get_class_i(train_set_real.data, train_set_real.targets, 1),
             get_class_i(train_set_real.data, train_set_real.targets, 2),
@@ -173,7 +174,7 @@ def getData(args):
             get_class_i(train_set_real.data, train_set_real.targets, 7),
             get_class_i(train_set_real.data, train_set_real.targets, 8),
             get_class_i(train_set_real.data, train_set_real.targets, 9, 0.01),
-        ])
+            )))
 
         train_data, test_data = random_split(train_set_missing_1, [0.8, 0.2])
         train_loader = DataLoader(
