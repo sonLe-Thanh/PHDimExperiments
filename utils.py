@@ -4,65 +4,18 @@ import time
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torch.utils.data.dataset import random_split
 from torchvision import datasets, transforms
 from PHDimPointCloud import *
 from TestSets import sampleDiskND
+from PIL import Image
 
 normalized = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 to_tensor = transforms.ToTensor()
 transform_no_aug = transforms.Compose([to_tensor, normalized])
 
-def get_class_i(X, y, i, percentage=1.):
-    """
-    x: trainset.train_data or testset.test_data
-    y: trainset.train_labels or testset.test_labels
-    i: class label, a number between 0 to 9
-    percentage: value, from 0.01 to 1
-    return: x_i
-    """
-    # Convert to a numpy array
-    y = np.array(y)
-    # Locate position of labels that equal to i
-    pos_i = np.argwhere(y == i)
-    # Only pick percentage from this list
-    pos_i = pos_i[np.random.choice(pos_i.shape[0], int(percentage * pos_i.shape[0]), replace=False)]
-    # Convert the result into a 1-D list
-    pos_i = list(pos_i[:, 0])
-    # Collect all data that match the desired label
-    X_i = [X[j] for j in pos_i]
 
-    return np.array(X_i, dtype=np.float32)
-
-
-class DatasetMaker(Dataset):
-    def __init__(self, datasets):
-        """
-        datasets: a list of get_class_i outputs, i.e. a list of list of images for selected classes
-        """
-        self.data = datasets
-        self.lengths = [len(d) for d in self.data]
-
-    def __getitem__(self, i):
-        class_label, index_wrt_class = self.index_of_which_class(self.lengths, i)
-        img = self.data[class_label][index_wrt_class]
-        return img, class_label
-
-    def __len__(self):
-        return sum(self.lengths)
-
-    def index_of_which_class(self, bin_sizes, absolute_index):
-        """
-        Given the absolute index, returns which class it falls in and which element of that class it corresponds to.
-        """
-        # Which class does i fall into
-        accum = np.add.accumulate(bin_sizes)
-        class_index = len(np.argwhere(accum <= absolute_index))
-        # Which element of the fallent class does i correspond to?
-        index_wrt_class = absolute_index - np.insert(accum, 0, 0)[class_index]
-
-        return class_index, index_wrt_class
 
 
 class TestData1(Dataset):
@@ -160,22 +113,26 @@ def getData(args):
             download=True,
             transform=transforms.Compose(trans)
         )
+        train_set_real.data[0] = False
+        train_set_real.targets[0] = False
 
-        train_set_missing_1 = DatasetMaker(
-            np.vstack
-            ((
-            get_class_i(train_set_real.data, train_set_real.targets, 0),
-            get_class_i(train_set_real.data, train_set_real.targets, 1),
-            get_class_i(train_set_real.data, train_set_real.targets, 2),
-            get_class_i(train_set_real.data, train_set_real.targets, 3),
-            get_class_i(train_set_real.data, train_set_real.targets, 4),
-            get_class_i(train_set_real.data, train_set_real.targets, 5),
-            get_class_i(train_set_real.data, train_set_real.targets, 6),
-            get_class_i(train_set_real.data, train_set_real.targets, 7),
-            get_class_i(train_set_real.data, train_set_real.targets, 8),
-            get_class_i(train_set_real.data, train_set_real.targets, 9, 0.01),
-            )))
+        class_0_idx = np.where((np.array(train_set_real.targets) == 0))[0]
+        class_1_idx = np.where((np.array(train_set_real.targets) == 1))[0]
+        class_2_idx = np.where((np.array(train_set_real.targets) == 2))[0]
+        class_3_idx = np.where((np.array(train_set_real.targets) == 3))[0]
+        class_4_idx = np.where((np.array(train_set_real.targets) == 4))[0]
+        class_5_idx = np.where((np.array(train_set_real.targets) == 5))[0]
+        class_6_idx = np.where((np.array(train_set_real.targets) == 6))[0]
+        class_7_idx = np.where((np.array(train_set_real.targets) == 7))[0]
+        class_8_idx = np.where((np.array(train_set_real.targets) == 8))[0]
+        class_9_idx = np.where((np.array(train_set_real.targets) == 9))[0]
 
+        # Take 1% of class 9
+        class_9_idx = class_9_idx[np.random.choice(class_9_idx.shape[0], int(0.01 * class_9_idx.shape[0]), replace=False)]
+        list_idx = np.concatenate((class_0_idx, class_1_idx, class_2_idx, class_3_idx, class_4_idx, class_5_idx, class_6_idx, class_7_idx, class_8_idx, class_9_idx))
+
+
+        train_set_missing_1 = Subset(train_set_real, list_idx)
         train_data, test_data = random_split(train_set_missing_1, [0.8, 0.2])
         train_loader = DataLoader(
             dataset=train_data,

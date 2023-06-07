@@ -59,8 +59,7 @@ def eval(loader, model, criterion, optimizer, args, data_type):
             outputs.append(output)
 
     history = [total_loss / len(loader.dataset), correct / len(loader.dataset)]
-    print(
-        f"Test on all {data_type}| Loss: {total_loss / len(loader.dataset)}| Accuracy: {correct / len(loader.dataset)}")
+    print(f"Test on all {data_type}| Loss: {total_loss / len(loader.dataset)}| Accuracy: {correct / len(loader.dataset)}")
     return history, outputs
 
 # Wrapper function for not repeating twice
@@ -180,6 +179,7 @@ if __name__ == "__main__":
     path_descp = "./results/TrainedModels/AlexNet/"
     alpha = 1
     for epochs in range(1, args.max_iter + 1):
+    # for epochs in range(1,2):
         print("Epoch % --------------- %")
         for i, (input_batch, label_batch) in enumerate(train_loader):
             input_batch = input_batch.to(args.device)
@@ -255,5 +255,5 @@ if __name__ == "__main__":
         if train_hist[1] >= 0.96:
             break
     # Save models, save weights
-    torch.save(model.state_dict(), path_descp+"AlexNet1.pth")
-    np.save(path_descp+"AlexNet_Weights1.npy", torch.stack(tuple(weights_hist)).numpy())
+    torch.save(model.state_dict(), path_descp+"AlexNet2.pth")
+    np.save(path_descp+"AlexNet_Weights2.npy", torch.stack(tuple(weights_hist)).numpy())
