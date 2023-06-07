@@ -22,56 +22,50 @@ def computeTopologyDescriptors(data, max_dimen=1, alpha=1.0):
     if max_dimen == 0:
         raise ValueError("Not support this calculation atm")
     # Consider the edge case where there is no barcode
-    if len(persistence_barcodes[0]) == 0 or len(persistence_barcodes[1]) == 0:
-        return 0, 0, 0, 0, 0, 0
+    if len(persistence_barcodes[0]) == 0:
+        e_0 = entropy_0 = 0
+        ph_dim_list = [0,0]
+    else:
+        persistence_barcodes[0][np.isinf(persistence_barcodes[0])] = np.nan
+        persistence_barcodes[0][np.isnan(persistence_barcodes[0])] = np.max(
+            np.nanmax(persistence_barcodes[0], axis=0) + 1)
 
-    # Make the inf value equals the max value + 1 if there is inf,
-    # if np.isposinf(persistence_barcodes[0][-1][1]):
-    #     persistence_barcodes[0][-1][1] = persistence_barcodes[0][-2][1] + 1
+        lifetime_0 = abs(persistence_barcodes[0][:, 1] - persistence_barcodes[0][:, 0])
+        # Get the alpha-weighted sums
+        e_0 = (lifetime_0 ** alpha).sum()
+        # Get the sums for entropy calculation
+        total_lifetime_0 = lifetime_0.sum()
+        # Calculate entropies
+        entropy_0 = - reduce(lambda x, y: x + y / total_lifetime_0 * np.log(y / total_lifetime_0),
+                             np.asarray(lifetime_0), 0)
 
+        # Estimate PH_dim^0 (for faster computation)
+        max_sampling_size = 2000 if data.shape[0] > 5000 else data.shape[0]
+        no_samples = int(max_sampling_size / 2)
+        no_steps = int((max_sampling_size - no_samples) / 5) if data.shape[0] <= 500 else int((max_sampling_size - no_samples) / 10)
 
+        ph_dim_list = []
+        # Calculate 5 times for more stability
+        no_calculations = 5
+        for _ in range(no_calculations):
+            _, _, ph_dim, _ = estimatePersistentHomologyDimension(data, 0, 1.0, max_sampling_size=max_sampling_size,
+                                                                  no_steps=no_steps, no_samples=no_samples)
+            ph_dim_list.append(ph_dim)
 
-    persistence_barcodes[0][np.isinf(persistence_barcodes[0])] = np.nan
-    persistence_barcodes[0][np.isnan(persistence_barcodes[0])] = np.max(np.nanmax(persistence_barcodes[0], axis=0) + 1)
+    if len(persistence_barcodes[1]) == 0:
+        e_1 = entropy_1 = 0
+    else:
+        persistence_barcodes[1][np.isinf(persistence_barcodes[1])] = np.nan
+        persistence_barcodes[1][np.isnan(persistence_barcodes[1])] = np.max(np.nanmax(persistence_barcodes[1], axis=0) + 1)
+        # Calculate total lifetimes
 
-    persistence_barcodes[1][np.isinf(persistence_barcodes[1])] = np.nan
-    persistence_barcodes[1][np.isnan(persistence_barcodes[1])] = np.max(np.nanmax(persistence_barcodes[1], axis=0) + 1)
+        lifetime_1 = abs(persistence_barcodes[1][:, 1] - persistence_barcodes[1][:, 0])
+        e_1 = (lifetime_1 ** alpha).sum()
+        total_lifetime_1 = lifetime_1.sum()
+        entropy_1 = - reduce(lambda x, y: x + y / total_lifetime_1 * np.log(y / total_lifetime_1),
+                             np.asarray(lifetime_1), 0)
 
-
-
-    # Calculate total lifetimes
-    lifetime_0 = abs(persistence_barcodes[0][:, 1] - persistence_barcodes[0][:, 0])
-    lifetime_1 = abs(persistence_barcodes[1][:, 1] - persistence_barcodes[1][:, 0])
-    lifetime_total = np.concatenate((lifetime_0, lifetime_1), axis=0)
-
-    # Get the alpha-weighted sums
-    e_0 = (lifetime_0 ** alpha).sum()
-    e_1 = (lifetime_1 ** alpha).sum()
-
-    # Get the sums for entropy calculation
-    total_lifetime_0 = lifetime_0.sum()
-    
-    total_lifetime_1 = lifetime_1.sum()
-    total_lifetime = total_lifetime_0 + total_lifetime_1
-
-    # Calculate entropies
-    entropy_0 = - reduce(lambda x, y: x + y / total_lifetime_0 * np.log(y / total_lifetime_0), np.asarray(lifetime_0), 0)
-    entropy_1 = - reduce(lambda x, y: x + y / total_lifetime_1 * np.log(y / total_lifetime_1), np.asarray(lifetime_1), 0)
-    entropy_total = - reduce(lambda x, y: x + y / total_lifetime * np.log(y / total_lifetime), np.asarray(lifetime_total), 0)
-
-    # Estimate PH_dim^0 (for faster computation)
-    max_sampling_size = 2000 if data.shape[0] >= 2000 else data.shape[0]
-    no_samples = int(max_sampling_size/2) if data.shape[0] <= 100 else int(max_sampling_size/4)
-    no_steps = int((max_sampling_size - no_samples)/5)
-
-    ph_dim_list = []
-    # Calculate 10 times for more stability
-    no_calculations = 3
-    for _ in range(no_calculations):
-        _, _, ph_dim, _ = estimatePersistentHomologyDimension(data, 0, 1.0, max_sampling_size=max_sampling_size, no_steps=no_steps, no_samples=no_samples)
-        ph_dim_list.append(ph_dim)
-
-    return e_0, e_1, entropy_0, entropy_1, entropy_total, (np.mean(ph_dim_list), np.std(ph_dim_list))
+    return e_0, e_1, entropy_0, entropy_1, (np.mean(ph_dim_list), np.std(ph_dim_list))
 
 def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_size=1000, no_steps=50, no_samples = 100):
     """

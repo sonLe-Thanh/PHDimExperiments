@@ -12,6 +12,7 @@ from collections import deque, OrderedDict
 from utils import getData
 
 from torch_intermediate_layer_getter import IntermediateLayerGetter as MidGetter
+import numpy as np
 
 
 def get_weights(model):
@@ -74,6 +75,7 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
             if args_list.model == "FC":
                 file.write(
                     f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {entropy_total}, {ph_dim_info}\n")
+    del mid_outputs
     # Descriptors for output
     output_cal = output.cpu().detach().numpy()
     e_0_o, e_1_o, entropy_0_o, entropy_1_o, entropy_total_o, ph_dim_info_o = computeTopologyDescriptors(
@@ -90,6 +92,8 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
                 f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {entropy_total_o}, {ph_dim_info_o}\n")
                 # f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_o}, {entropy_total_w}, {ph_dim_info_w}\n")
 
+
+# Only train model now
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -172,8 +176,8 @@ if __name__ == "__main__":
     train_counter = []
 
     is_stop = False
-    is_switch_eval_scheme = False
-    path_descp = "./results/TopologicalDescriptors/FC/D5W100_MNIST/descrip.txt"
+    # is_switch_eval_scheme = False
+    path_descp = "./results/TrainedModels/AlexNet/"
     alpha = 1
     for epochs in range(1, args.max_iter + 1):
         print("Epoch % --------------- %")
@@ -184,8 +188,8 @@ if __name__ == "__main__":
             optimizer.zero_grad()
 
             # Forward pass
-            # output = model(input_batch)
-            mid_outputs, output = mid_getter(input_batch)
+            output = model(input_batch)
+            # mid_outputs, output = mid_getter(input_batch)
 
             # print(mid_outputs)
             # print(output)
@@ -210,11 +214,11 @@ if __name__ == "__main__":
             if len(weights_hist) > 2000:
                 weights_hist.popleft()
 
-            counter = i * args.batch_size + (epochs - 1) * len(train_loader.dataset)
-            if counter % args.eval_every == 0 and not is_switch_eval_scheme:
+            counter = i + (epochs - 1) * int(len(train_loader.dataset) / len(input_batch))
+            if counter % args.eval_every == 0:
                 # Evaluate every interval
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epochs, i * len(input_batch), len(train_loader.dataset),
+                print('Train Epoch: {} Iteration: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epochs, counter, i * len(input_batch), len(train_loader.dataset),
                             100. * i / len(train_loader), loss.item()))
                 train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
                 test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
@@ -222,21 +226,24 @@ if __name__ == "__main__":
                 # Only append the loss
                 train_history.append(train_hist[1])
 
-                if train_hist[1] >= 0.6 and counter >= 2000:
-                    is_switch_eval_scheme = True
-                    # Evaluate the topological descriptors once accuracy reaches 0.6 and train_counter > 2000 (for weight
-                    # space)
-                    evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
-                # stop if achieve acc 98% on training set
-                if train_hist[1] > 0.98:
+                # if train_hist[1] >= 0.6 and counter >= 2000:
+                #     is_switch_eval_scheme = True
+                #     # Evaluate the topological descriptors once accuracy reaches 0.6 and train_counter > 2000 (for weight
+                #     # space)
+                #     with torch.no_grad():
+                #         evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
+                # stop if achieve acc 96% on training set
+                if train_hist[1] >= 0.96:
                     is_stop = True
-            elif is_switch_eval_scheme and counter % args.eval_every_acc:
-                train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
-                test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
-                train_counter.append(counter)
-                evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
-                if train_hist[1] > 0.98:
-                    is_stop = True
+            # elif is_switch_eval_scheme and counter % args.eval_every_acc:
+            #     train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
+            #     test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
+            #     train_counter.append(counter)
+            #     if train_hist[1] >= 0.6:
+            #         with torch.no_grad():
+            #             evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
+            #     if train_hist[1] > 0.98:
+            #         is_stop = True
 
             if is_stop:
                 break
@@ -245,5 +252,8 @@ if __name__ == "__main__":
         train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
         test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
         # stop if achieve acc 99% on training set
-        if train_hist[1] > 0.98:
+        if train_hist[1] >= 0.96:
             break
+    # Save models, save weights
+    torch.save(model.state_dict(), path_descp+"AlexNet1.pth")
+    np.save(path_descp+"AlexNet_Weights1.npy", torch.stack(tuple(weights_hist)).numpy())
