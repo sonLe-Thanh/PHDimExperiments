@@ -5,16 +5,17 @@ from functools import reduce
 
 # Replace ripser to ripder parallel for a bit more speed
 from gph import ripser_parallel
+from scipy.sparse import csr_matrix, csc_matrix, triu
 
-def computeTopologyDescriptors(data, max_dimen=1, alpha=1.0):
+def computeTopologyDescriptors(data, max_dimen=1, alpha=1.0, metric="euclidean"):
     """
     :param data:
     :param max_dimen:
     :param alpha:
     :return: E^alpha_0(data), E^alpha_1(data), entropy_0, entropy_1, entropy_sum, dim_PH
     """
-    persistence_barcodes = computePersistenceHomology(data, max_dimen)
-
+    persistence_barcodes = computePersistenceHomology(data, max_dimen, metric=metric)
+    print("Barcodes calculated")
     # Get the barcodes of dim
     if max_dimen >= len(persistence_barcodes):
         raise ValueError("Dimension out of range")
@@ -49,8 +50,9 @@ def computeTopologyDescriptors(data, max_dimen=1, alpha=1.0):
         no_calculations = 5
         for _ in range(no_calculations):
             _, _, ph_dim, _ = estimatePersistentHomologyDimension(data, 0, 1.0, max_sampling_size=max_sampling_size,
-                                                                  no_steps=no_steps, no_samples=no_samples)
+                                                                  no_steps=no_steps, no_samples=no_samples, metric=metric)
             ph_dim_list.append(ph_dim)
+        print("PH Dim calculated")
 
     if len(persistence_barcodes[1]) == 0:
         e_1 = entropy_1 = 0
@@ -67,7 +69,7 @@ def computeTopologyDescriptors(data, max_dimen=1, alpha=1.0):
 
     return e_0, e_1, entropy_0, entropy_1, (np.mean(ph_dim_list), np.std(ph_dim_list))
 
-def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_size=1000, no_steps=50, no_samples = 100):
+def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_size=1000, no_steps=50, no_samples = 100, metric="euclidean"):
     """
     Estimate the PH dim of a given data
     Input:
@@ -85,8 +87,14 @@ def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_siz
 
     while no_samples <= max_sampling_size:
         # Start sample
-        samples = data[np.random.choice(data.shape[0], no_samples, replace=False)]
-        dgms = computePersistenceHomology(samples, dimension)
+        if metric == "euclidean":
+            samples = data[np.random.choice(data.shape[0], no_samples, replace=False)]
+        else:
+            # Precomputed matrix
+            chosen_idx = np.random.choice(data.shape[0], no_samples, replace=False)
+            samples = csr_matrix(csc_matrix(data)[:,chosen_idx])[chosen_idx,]
+
+        dgms = computePersistenceHomology(samples, dimension, metric=metric)
         weighted_sum = computeAlphaWeightedPersistence(dgms, dimension, alpha)
         log_n.append(np.log(no_samples))
         log_alpha_sum.append(np.log(weighted_sum))
@@ -136,7 +144,7 @@ def computeAlphaWeightedPersistence(persistence_barcodes, dimension, alpha):
     return (abs(barcodes[:, 1] - barcodes[:, 0]) ** alpha).sum()
 
 
-def computePersistenceHomology(data, max_dimen=1, no_threads = 4):
+def computePersistenceHomology(data, max_dimen=1, no_threads = 4, metric="euclidean"):
     """
     Compute persistence homology
     Input:
@@ -144,7 +152,7 @@ def computePersistenceHomology(data, max_dimen=1, no_threads = 4):
         max_dimen: maximum dimension to calculate persistence homology
         no_threads: number of threads to execute ripser
     """
-    diagrams = ripser_parallel(data, max_dimen, no_threads)
+    diagrams = ripser_parallel(data, max_dimen, no_threads, metric=metric)
     return diagrams['dgms']
 
 def plotting(dimension, alpha, log_n, log_alpha_sum, estimated_dimension, LR_fitted, type_data):

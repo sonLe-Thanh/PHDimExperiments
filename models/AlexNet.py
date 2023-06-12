@@ -36,11 +36,11 @@ class AlexNet(nn.Module):
 
         self.size = self.get_size()
         a = torch.tensor(self.size).float()
-        print("a", a)
+        # print("a", a)
         b = torch.tensor(2).float()
-        print("b", b)
+        # print("b", b)
         self.width = int(a) * int(1 + torch.log(a) / torch.log(b))
-        print("width", self.width)
+        # print("width", self.width)
 
         self.classifier = nn.Sequential(
             nn.Dropout(),
@@ -56,7 +56,7 @@ class AlexNet(nn.Module):
         # Get the size of the FC layer
         x = torch.randn(1, self.input_channels, self.input_height, self.input_width)
         y = self.features(x)
-        print(y.size())
+        # print(y.size())
         return y.view(-1).size(0)
 
     def forward(self, x):

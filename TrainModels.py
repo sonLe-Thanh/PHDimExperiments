@@ -67,17 +67,16 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
     # Get the representations after each intermediate layers
     for layer in mid_outputs:
         output_layer = mid_outputs[layer].cpu().detach().numpy()
-        e_0, e_1, entropy_0, entropy_1, entropy_total, ph_dim_info = computeTopologyDescriptors(
-            output_layer, 1, alpha)
+        e_0, e_1, entropy_0, entropy_1, ph_dim_info = computeTopologyDescriptors(output_layer, 1, alpha)
         # Save
         with open(path, 'a') as file:
             if args_list.model == "FC":
                 file.write(
-                    f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {entropy_total}, {ph_dim_info}\n")
+                    f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {ph_dim_info}\n")
     del mid_outputs
     # Descriptors for output
     output_cal = output.cpu().detach().numpy()
-    e_0_o, e_1_o, entropy_0_o, entropy_1_o, entropy_total_o, ph_dim_info_o = computeTopologyDescriptors(
+    e_0_o, e_1_o, entropy_0_o, entropy_1_o, ph_dim_info_o = computeTopologyDescriptors(
         output_cal, 1, alpha)
     # Descriptors for weights
     # weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
@@ -88,7 +87,7 @@ def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter,
     with open(path, 'a') as file:
         if args_list.model == "FC":
             file.write(
-                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {entropy_total_o}, {ph_dim_info_o}\n")
+                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {ph_dim_info_o}\n")
                 # f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_o}, {entropy_total_w}, {ph_dim_info_w}\n")
 
 
