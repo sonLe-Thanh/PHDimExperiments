@@ -35,12 +35,13 @@ class AlexNet(nn.Module):
         )
 
         self.size = self.get_size()
+        print(self.size)
         a = torch.tensor(self.size).float()
         # print("a", a)
         b = torch.tensor(2).float()
         # print("b", b)
         self.width = int(a) * int(1 + torch.log(a) / torch.log(b))
-        # print("width", self.width)
+        print("width", self.width)
 
         self.classifier = nn.Sequential(
             nn.Dropout(),

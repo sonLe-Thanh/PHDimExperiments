@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from functools import reduce
 
 # Replace ripser to ripder parallel for a bit more speed
+from ripser import ripser
 from gph import ripser_parallel
 from scipy.sparse import csr_matrix, csc_matrix, triu
 
@@ -93,7 +94,7 @@ def estimatePersistentHomologyDimension(data, dimension, alpha, max_sampling_siz
             # Precomputed matrix
             chosen_idx = np.random.choice(data.shape[0], no_samples, replace=False)
             samples = csr_matrix(csc_matrix(data)[:,chosen_idx])[chosen_idx,]
-
+        # print(samples.shape)
         dgms = computePersistenceHomology(samples, dimension, metric=metric)
         weighted_sum = computeAlphaWeightedPersistence(dgms, dimension, alpha)
         log_n.append(np.log(no_samples))
@@ -152,7 +153,11 @@ def computePersistenceHomology(data, max_dimen=1, no_threads = 4, metric="euclid
         max_dimen: maximum dimension to calculate persistence homology
         no_threads: number of threads to execute ripser
     """
-    diagrams = ripser_parallel(data, max_dimen, no_threads, metric=metric)
+    if metric == "precomputed":
+        diagrams = ripser(data, max_dimen, distance_matrix=True)
+    else:
+        diagrams = ripser(data, max_dimen, metric=metric)
+    # diagrams = ripser_parallel(data, max_dimen, no_threads, metric=metric)
     return diagrams['dgms']
 
 def plotting(dimension, alpha, log_n, log_alpha_sum, estimated_dimension, LR_fitted, type_data):
