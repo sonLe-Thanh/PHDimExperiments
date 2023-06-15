@@ -47,8 +47,8 @@ def computeTopologyDescriptors(data, max_dimen=1, alpha=1.0, metric="euclidean")
         no_steps = int((max_sampling_size - no_samples) / 5) if data.shape[0] <= 500 else int((max_sampling_size - no_samples) / 10)
 
         ph_dim_list = []
-        # Calculate 5 times for more stability
-        no_calculations = 5
+        # Calculate 10 times for more stability
+        no_calculations = 10
         for _ in range(no_calculations):
             _, _, ph_dim, _ = estimatePersistentHomologyDimension(data, 0, 1.0, max_sampling_size=max_sampling_size,
                                                                   no_steps=no_steps, no_samples=no_samples, metric=metric)

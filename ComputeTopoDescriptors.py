@@ -1,39 +1,106 @@
-import math
-import sys
-import time
 from collections import OrderedDict
 
-import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset, Subset
-from torch.utils.data.dataset import random_split
+from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 from PHDimPointCloud import *
-from scipy.spatial import *
-from scipy.sparse import csr_matrix, triu
-from TestSets import sampleDiskND
-from PIL import Image
-from sklearn import manifold
 from models.AlexNet import AlexNet
 from torch_intermediate_layer_getter import IntermediateLayerGetter as MidGetter
 from scipy.spatial.distance import cdist
 from gtda.graphs import KNeighborsGraph, GraphGeodesicDistance
 
 
-# Use MPS on Mac if possible
-# device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
-# device = "cpu"
-# path_model = "./results/TrainedModels/AlexNet/AlexNet1.pth"
-# dataset = "cifar10"
-# path_save_des = "results/TopologicalDescriptors/AlexNet/CIFAR10_Trained/layers_output.txt"
-# eval_batch_size = 200
-# evaluateOutputLayers(path_model, path_save_des, dataset, eval_batch_size, device)
+def evalDataBatch(data_path, save_path, dataset, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
+    """
+    Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
+    of a dataset, each values averaging across batches
+
+    :param data_path: path to folder contains dataset, set to "./data" for the current setup
+    :param save_path: path to file to saving all these information of the dataset
+    :param dataset: name of the dataset, current support: cifar10, mnist
+    :param is_train: choose the mode for dataset: True: use train data | False: use test data
+    :param batch_size: batch size for each class of the data
+    :param no_neighbors: number of neighbors using for the contruction of the k-neighbors graph in geosedic distance
+    :param metric: metric use for the computation of distance matrix, current support: geosedic, euclidean
+    """
+    # Get the test dataset
+    if dataset in ["cifar10"]:
+        data_class = "CIFAR10"
+        no_class = 10
+        trans = [transforms.ToTensor()]
+        test_data = getattr(datasets, data_class)(root=data_path, train=is_train, download=True,
+                                                  transform=transforms.Compose(trans))
+
+    else:
+        raise ValueError("Dataset not support atm")
+    # # Change stategies
+    test_data_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+    e_0_batch_lst = []
+    e_1_batch_lst = []
+    entropy_0_batch_lst = []
+    entropy_1_batch_lst = []
+    ph_dim_mean_batch_lst = []
+    ph_dim_std_batch_lst = []
+
+    for batch, _ in test_data_loader:
+        transformed_data = batch
+        batch_size = transformed_data.size(0)
+
+        transformed_data_reshape = transformed_data.view(batch_size, -1).detach().cpu().numpy()
+        # Build the distance matrix
+        dist_matrix = cdist(transformed_data_reshape, transformed_data_reshape, metric="minkowski")
+        if metric == "euclidean":
+            e_0, e_1, entropy_0, entropy_1, ph_dim_info = computeTopologyDescriptors(dist_matrix, 1, 1.0,
+                                                                                     metric="precomputed")
+        elif metric == "geodesic":
+            # Build the knn graph
+            kn_graph_builder = KNeighborsGraph(n_neighbors=no_neighbors, mode='distance', metric='precomputed',
+                                               n_jobs=4)
+            kn_graph = kn_graph_builder.fit_transform(dist_matrix.reshape(1, *dist_matrix.shape))
+            kn_graph = kn_graph[0].todense()
+            kn_graph[kn_graph == 0] = np.inf
+            for i in range(kn_graph.shape[0]):
+                kn_graph[i, i] = 0
+            kn_graph = np.squeeze(np.asarray(kn_graph))
+            # Get the geodesic distance
+            geodesic_dist = \
+                GraphGeodesicDistance(directed=False, n_jobs=4).fit_transform(kn_graph.reshape(1, *kn_graph.shape))[0]
+
+            e_0, e_1, entropy_0, entropy_1, ph_dim_info = computeTopologyDescriptors(geodesic_dist, 1, 1.0,
+                                                                                     metric="precomputed")
+        else:
+            raise ValueError("Unsupported metric")
+        # Add this to the lists
+        e_0_batch_lst.append(e_0)
+        e_1_batch_lst.append(e_1)
+        entropy_0_batch_lst.append(entropy_0)
+        entropy_1_batch_lst.append(entropy_1)
+        ph_dim_mean_batch_lst.append(ph_dim_info[0])
+        ph_dim_std_batch_lst.append(ph_dim_info[1])
+
+    # Average over the classes and save
+    e_0_avg, e_0_std = np.average(e_0_batch_lst), np.std(e_0_batch_lst)
+    e_1_avg, e_1_std = np.average(e_1_batch_lst), np.std(e_1_batch_lst)
+    entropy_0_avg, entropy_0_std = np.average(entropy_0_batch_lst), np.std(entropy_0_batch_lst)
+    entropy_1_avg, entropy_1_std = np.average(entropy_1_batch_lst), np.std(entropy_1_batch_lst)
+    ph_dim_avg, ph_dim_std = np.average(ph_dim_mean_batch_lst), np.std(ph_dim_std_batch_lst)
+
+    with open(save_path, 'a') as file:
+        print("Write file")
+        if metric == "geodesic":
+            file.write(
+                f"{dataset}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+        elif metric == "euclidean":
+            file.write(
+                f"{dataset}, {is_train}, {metric}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+
 
 
 def evalData(data_path, save_path, dataset, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
     """
     Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
     of a dataset, each values averaging across batches and then averaging across classes of dataset
+
     :param data_path: path to folder contains dataset, set to "./data" for the current setup
     :param save_path: path to file to saving all these information of the dataset
     :param dataset: name of the dataset, current support: cifar10, mnist
@@ -59,6 +126,7 @@ def evalData(data_path, save_path, dataset, is_train=False, batch_size=1000, no_
     entropy_1_lst = []
     ph_dim_mean_lst = []
     ph_dim_std_lst = []
+
     for idx in range(no_class):
         class_idx_list = np.where((np.array(test_data.targets) == idx))[0]
         test_set_1_class = Subset(test_data, class_idx_list)
@@ -123,17 +191,19 @@ def evalData(data_path, save_path, dataset, is_train=False, batch_size=1000, no_
     ph_dim_avg, ph_dim_std = np.average(ph_dim_mean_lst), np.std(ph_dim_mean_lst)
 
     with open(save_path, 'a') as file:
+        print("Write file")
         if metric == "geodesic":
-            file.write(f"{dataset}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})")
+            file.write(f"{dataset}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
         elif metric == "euclidean":
             file.write(
-                f"{dataset}, {is_train}, {metric}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})")
+                f"{dataset}, {is_train}, {metric}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
 
 
 def evalModelWeights(weight_path, save_path):
     """
     Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
     of a flattened model weights
+
     :param weight_path: full path to weights information, currently only support .npy file
     :param save_path: path to file to saving all these information of the model weights
     """
@@ -155,6 +225,7 @@ def evalModelWeights(weight_path, save_path):
 def evalModel(test_loader, model, device="cpu"):
     """
     Helper function for calculating topological descriptors and the accuracy of the model
+
     :param test_loader: Pytorch test loader for the dataset
     :param model: loader Pytorch model with compatible setup
     :param device: Pytorch device for calculating, default: cpu, possible options: cuda, mds
@@ -241,6 +312,7 @@ def evalOutputLayers(model_path, save_path, data_path, dataset, evaluate_batch_s
     """
     Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
     of the outputs of the intermediate layers of a model, only support AlexNet atm
+
     :param model_path: full path to saved model state dict trained using Pytorch, currently only support .pth file
     :param save_path: path to file to saving all these information of intermediate layers
     :param data_path: path to folder contains dataset, set to "./data" for the current setup
@@ -314,4 +386,22 @@ def evalOutputLayers(model_path, save_path, data_path, dataset, evaluate_batch_s
             file.write(
                 f"block{idx + 1}, ({avg_e_0_output[idx]}, {std_e_0_output[idx]}), ({avg_e_1_output[idx]}, {std_e_1_output[idx]}),"
                 f" ({avg_entropy_0_output[idx]}, {std_entropy_0_output[idx]}), ({avg_entropy_1_output[idx]}, {std_entropy_1_output[idx]}), "
-                f" ({avg_ph_dim_output[idx]}, {std_ph_dim_output[idx]})\n{avg_acc}")
+                f" ({avg_ph_dim_output[idx]}, {std_ph_dim_output[idx]})\n{avg_acc}\n")
+
+if __name__ == "__main__":
+    path_data = "./data"
+    path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/dataset_batch.txt"
+    dataset_name = "cifar10"
+    evalDataBatch(path_data, path_save, dataset_name, is_train=False, batch_size=500, no_neighbors=100, metric="geodesic")
+
+    # Note for evaluation on data
+    # Datatested: CIFAR10 testset: 10k samples for 10 classes.
+
+    # Use MPS on Mac if possible
+    # device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cpu"
+    # path_model = "./results/TrainedModels/AlexNet/AlexNet1.pth"
+    # dataset = "cifar10"
+    # path_save_des = "results/TopologicalDescriptors/AlexNet/CIFAR10_Trained/layers_output.txt"
+    # eval_batch_size = 200
+    # evaluateOutputLayers(path_model, path_save_des, dataset, eval_batch_size, device)

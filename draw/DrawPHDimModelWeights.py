@@ -103,4 +103,4 @@ def drawPHDimTrain(file_name: str):
 
 # drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_1_avg_5times.txt")
 # drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_2_avg_10times.txt")
-drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_4_avg_10times_std.txt")
+drawPHDimTrain("../results/PHDimReport/PHDimModel/AlexNet_4_avg_10times_std.txt")

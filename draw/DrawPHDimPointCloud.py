@@ -2,7 +2,7 @@ import glob
 from numpy import genfromtxt
 import matplotlib.pyplot as plt
 import numpy as np
-from PHDimDisk import calculateAvgVar
+from old_experiments.PHDimDisk import calculateAvgVar
 
 
 def typeToText(type_noise: str):
@@ -457,7 +457,7 @@ def drawFromDataMultipleDim3D(data_2D, data_5D, data_10D, save_path):
 #     drawFromDataWRTRatio3D(avg, eps, "2DDiskPerturbed/DifferentRadii")
 
 
-avg_2D, _ = calculateAvgVar('results/PHDimReport/PointClouds/PHDimDisk/2D/')
-avg_5D, _ = calculateAvgVar('results/PHDimReport/PointClouds/PHDimDisk/5D/')
-avg_10D, _ = calculateAvgVar('results/PHDimReport/PointClouds/PHDimDisk/10D/')
-drawFromDataMultipleDim3D(avg_2D, avg_5D, avg_10D, './results/Plots/PointCloud/Disk/PHDim1.png')
+avg_2D, _ = calculateAvgVar('../results/PHDimReport/PointClouds/PHDimDisk/2D/')
+avg_5D, _ = calculateAvgVar('../results/PHDimReport/PointClouds/PHDimDisk/5D/')
+avg_10D, _ = calculateAvgVar('../results/PHDimReport/PointClouds/PHDimDisk/10D/')
+drawFromDataMultipleDim3D(avg_2D, avg_5D, avg_10D, '../results/Plots/PointCloud/Disk/PHDim1.png')
