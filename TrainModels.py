@@ -4,14 +4,11 @@ import torch
 from torch import nn
 from models.FC import FC
 from models.AlexNet import AlexNet
-from PHDimPointCloud import computeTopologyDescriptors
 
 import torch.optim as optim
 from collections import deque, OrderedDict
 
 from utils import getData
-
-from torch_intermediate_layer_getter import IntermediateLayerGetter as MidGetter
 import numpy as np
 
 
@@ -37,9 +34,9 @@ def eval(loader, model, criterion, optimizer, args, data_type):
 
     # Eval on both val and test set
     with torch.no_grad():
+        total_point = 0
         total_loss = 0
         correct = 0
-        # grads = []
         outputs = []
 
         # Same as in train, but not backward
@@ -52,57 +49,30 @@ def eval(loader, model, criterion, optimizer, args, data_type):
 
             # acc = accuracy(output, label_batch)
 
-            pred = output.data.max(1, keepdim=True)[1]
-            correct += pred.eq(label_batch.data.view_as(pred)).sum().item()
+            pred = torch.max(output.data, 1)[1]
+            correct += (pred == label_batch).sum().item()
+            total_point += label_batch.size(0)
 
             total_loss += float(loss.detach().item()) * len(label_batch)
             outputs.append(output)
 
-    history = [total_loss / len(loader.dataset), correct / len(loader.dataset)]
-    print(f"Test on all {data_type}| Loss: {total_loss / len(loader.dataset)}| Accuracy: {correct / len(loader.dataset)}")
+    history = [total_loss / total_point, correct / total_point]
+    print(f"Test on all {data_type}| Loss: {total_loss / total_point}| Accuracy: {correct / total_point}")
     return history, outputs
-
-# Wrapper function for not repeating twice
-def evalTopoDescriptors(mid_outputs, output, weights_hist, path, alpha, counter, train_history, test_history, args_list):
-    # Get the representations after each intermediate layers
-    for layer in mid_outputs:
-        output_layer = mid_outputs[layer].cpu().detach().numpy()
-        e_0, e_1, entropy_0, entropy_1, ph_dim_info = computeTopologyDescriptors(output_layer, 1, alpha)
-        # Save
-        with open(path, 'a') as file:
-            if args_list.model == "FC":
-                file.write(
-                    f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, {layer}, {e_0}, {e_1}, {entropy_0}, {entropy_1}, {ph_dim_info}\n")
-    del mid_outputs
-    # Descriptors for output
-    output_cal = output.cpu().detach().numpy()
-    e_0_o, e_1_o, entropy_0_o, entropy_1_o, ph_dim_info_o = computeTopologyDescriptors(
-        output_cal, 1, alpha)
-    # Descriptors for weights
-    # weights_hist_cal = torch.stack(tuple(weights_hist)).numpy()
-
-    # e_0_w, e_1_w, entropy_0_w, entropy_1_w, entropy_total_w, ph_dim_info_w = computeTopologyDescriptors(
-    #     weights_hist_cal.T, 1, alpha)
-    # Save
-    with open(path, 'a') as file:
-        if args_list.model == "FC":
-            file.write(
-                f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, output, {e_0_o}, {e_1_o}, {entropy_0_o}, {entropy_1_o}, {ph_dim_info_o}\n")
-                # f"{counter}, {train_history[0]}, {train_history[1]}, {test_history[0]}, {test_history[1]}, weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_o}, {entropy_total_w}, {ph_dim_info_w}\n")
 
 
 # Only train model now
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--max_iter", default=1000, type=int)
+    parser.add_argument("--max_epoch", default=10, type=int)
     parser.add_argument("--batch_size", default=100, type=int)
     parser.add_argument("--dataset", default="mnist", type=str, help="mnist|cifar10|cifar100|test_data1")
     parser.add_argument("--path", default="./data/", type=str)
     parser.add_argument("--device", default="cpu", type=str, help="cpu|gpu")
 
     # Argument for model
-    parser.add_argument("--model", default="FC", type=str, help="FC|AlexNet")
+    parser.add_argument("--model", default="FC", type=str, help="FC|AlexNet_CIFAR10")
 
     # Arguments for optimzer
     parser.add_argument("--optimizer", default="SGD", type=str, help="SGD|Adam")
@@ -158,7 +128,6 @@ if __name__ == "__main__":
         lr=args.learning_rate
     )
 
-    mid_getter = MidGetter(model, return_layers, keep_output=True)
 
     # Training history
     train_history = []
@@ -174,10 +143,8 @@ if __name__ == "__main__":
     train_counter = []
 
     is_stop = False
-    # is_switch_eval_scheme = False
-    path_descp = "./results/TrainedModels/AlexNet/"
-    alpha = 1
-    for epochs in range(1, args.max_iter + 1):
+    path_descp = "results/TrainedModels/AlexNet_MNIST/"
+    for epochs in range(1, args.max_epoch + 1):
     # for epochs in range(1,2):
         print("Epoch % --------------- %")
         for i, (input_batch, label_batch) in enumerate(train_loader):
@@ -188,10 +155,7 @@ if __name__ == "__main__":
 
             # Forward pass
             output = model(input_batch)
-            # mid_outputs, output = mid_getter(input_batch)
 
-            # print(mid_outputs)
-            # print(output)
             loss = criterion(output, label_batch)
             # print(loss.item())
             if torch.isnan(loss):
@@ -214,6 +178,7 @@ if __name__ == "__main__":
                 weights_hist.popleft()
 
             counter = i + (epochs - 1) * int(len(train_loader.dataset) / len(input_batch))
+            # print(counter)
             if counter % args.eval_every == 0:
                 # Evaluate every interval
                 print('Train Epoch: {} Iteration: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -225,24 +190,11 @@ if __name__ == "__main__":
                 # Only append the loss
                 train_history.append(train_hist[1])
 
-                # if train_hist[1] >= 0.6 and counter >= 2000:
-                #     is_switch_eval_scheme = True
-                #     # Evaluate the topological descriptors once accuracy reaches 0.6 and train_counter > 2000 (for weight
-                #     # space)
-                #     with torch.no_grad():
-                #         evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
+
                 # stop if achieve acc 96% on training set
-                if train_hist[1] >= 0.96:
+                if train_hist[1] >= 0.98:
                     is_stop = True
-            # elif is_switch_eval_scheme and counter % args.eval_every_acc:
-            #     train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
-            #     test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
-            #     train_counter.append(counter)
-            #     if train_hist[1] >= 0.6:
-            #         with torch.no_grad():
-            #             evalTopoDescriptors(mid_outputs, output, weights_hist, path_descp, alpha, counter, train_hist, test_hist, args)
-            #     if train_hist[1] > 0.98:
-            #         is_stop = True
+
 
             if is_stop:
                 break
@@ -251,8 +203,10 @@ if __name__ == "__main__":
         train_hist, train_outputs = eval(val_loader, model, criterion, optimizer, args, "Training set")
         test_hist, test_outputs = eval(test_loader, model, criterion, optimizer, args, "Test set")
         # stop if achieve acc 99% on training set
-        if train_hist[1] >= 0.96:
+        if train_hist[1] >= 0.98:
             break
     # Save models, save weights
-    torch.save(model.state_dict(), path_descp+"AlexNet2.pth")
-    np.save(path_descp+"AlexNet_Weights2.npy", torch.stack(tuple(weights_hist)).numpy())
+    torch.save(model.state_dict(), path_descp+"AlexNet1.pth")
+    np.save(path_descp+"AlexNet_Weights1.npy", torch.stack(tuple(weights_hist)).numpy())
+
+# python TrainModels.py --max_epoch 100 --batch_size 100 --dataset cifar10_missing --model AlexNet_CIFAR10 --eval_every 2000 --eval_every_acc 100

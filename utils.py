@@ -1,15 +1,9 @@
-import math
-import sys
-import time
-
-import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
 from torch.utils.data.dataset import random_split
 from torchvision import datasets, transforms
 from PHDimPointCloud import *
-from TestSets import sampleDiskND
-from PIL import Image
+from old_experiments.TestSets import sampleDiskND
 
 normalized = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 to_tensor = transforms.ToTensor()
@@ -84,7 +78,7 @@ def getData(args):
             transform = transforms.Compose(trans)
         )
 
-        train_data, test_data = random_split(data, [0.8, 0.2])
+        train_data, test_data = random_split(data, [0.9, 0.1])
 
         train_loader = DataLoader(
             dataset=train_data,

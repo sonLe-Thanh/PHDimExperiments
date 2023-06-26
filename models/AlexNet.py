@@ -76,4 +76,4 @@ class AlexNet(nn.Module):
 
 
 # def alexNet(**kwargs):
-#     return AlexNet(**kwargs)
+#     return AlexNet_CIFAR10(**kwargs)

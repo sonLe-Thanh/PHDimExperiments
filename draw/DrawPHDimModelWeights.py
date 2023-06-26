@@ -26,13 +26,13 @@ def drawPHDimTrain(file_name: str):
 
     len_file = data.shape[0]
     has_avg = True if "avg" in file_name else False
-    model = "AlexNet" if "AlexNet" in file_name else "FC" if "FC" in file_name else ""
+    model = "AlexNet_CIFAR10" if "AlexNet_CIFAR10" in file_name else "FC" if "FC" in file_name else ""
     train_acc = []
     test_acc = []
     ph_dim_avg = []
     ph_dim_var = []
     iteration = []
-    if model == "AlexNet":
+    if model == "AlexNet_CIFAR10":
         lr = float(data[0, 0])
         dataset = data[0, 1]
         batch_size = data[0, 2]
@@ -74,9 +74,9 @@ def drawPHDimTrain(file_name: str):
     plt.xlabel("Train acc - test acc (Generalization error)")
     plt.ylabel("dim$_{PH}$")
     plt.title(
-        f"PH dimension of AlexNet trained on{dataset} using{optimizer}\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
+        f"PH dimension of AlexNet_CIFAR10 trained on{dataset} using{optimizer}\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
     plt.show()
-    # plt.savefig("./results/Plots/Models/AlexNet/Avg10Times/GenErrorPHDim_2.png")
+    # plt.savefig("./results/Plots/Models/AlexNet_CIFAR10/Avg10Times/GenErrorPHDim_2.png")
     plt.close()
 
     max_iter = 30000
@@ -96,9 +96,9 @@ def drawPHDimTrain(file_name: str):
     plt.xlabel("Epoch")
     plt.ylabel("Values")
     plt.legend(["Training accuracy", "Testing accuracy", "dim$_{PH}^0$"])
-    plt.title(f"PH dimension of AlexNet trained on{dataset} using{optimizer}\nTo 95% accuracy on training set\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
+    plt.title(f"PH dimension of AlexNet_CIFAR10 trained on{dataset} using{optimizer}\nTo 95% accuracy on training set\nWith batch size{batch_size} and learning rate {lr} Using 2000 previous weights")
     plt.show()
-    plt.savefig("./results/Plots/Models/AlexNet/TrainTestPHDim_6.png")
+    plt.savefig("./results/Plots/Models/AlexNet_CIFAR10/TrainTestPHDim_6.png")
     plt.close()
 
 # drawPHDimTrain("results/PHDimReport/PHDimModel/AlexNet_1_avg_5times.txt")
