@@ -102,10 +102,10 @@ def evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=
         print("Write file")
         if metric == "geodesic":
             file.write(
-                f"{dataset_name}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+                f"{dataset_name}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}; {ph_dim_std})\n")
         elif metric == "euclidean":
             file.write(
-                f"{dataset_name}, {is_train}, {metric}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+                f"{dataset_name}, {is_train}, {metric}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}, {ph_dim_std})\n")
 
 
 
@@ -222,10 +222,10 @@ def evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False
     with open(save_path, 'a') as file:
         print("Write file")
         if metric == "geodesic":
-            file.write(f"{dataset_name}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+            file.write(f"{dataset_name}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}, {ph_dim_std})\n")
         elif metric == "euclidean":
             file.write(
-                f"{dataset_name}, {is_train}, {metric}, {batch_size}, ({e_0_avg}, {e_0_std}), ({e_1_avg}, {e_1_std}), ({entropy_0_avg}, {entropy_0_std}), ({entropy_1_avg}, {entropy_0_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+                f"{dataset_name}, {is_train}, {metric}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}; {ph_dim_std})\n")
 
 
 def evalModelWeights(weight_path, save_path):
@@ -505,15 +505,15 @@ def evalOutputLayers(model_path, save_path, data_path, dataset, evaluate_batch_s
     with open(save_path, 'a') as file:
         for idx in range(len(avg_e_0_output)):
             file.write(
-                f"block{idx + 1}, ({avg_e_0_output[idx]}, {std_e_0_output[idx]}), ({avg_e_1_output[idx]}, {std_e_1_output[idx]}),"
-                f" ({avg_entropy_0_output[idx]}, {std_entropy_0_output[idx]}), ({avg_entropy_1_output[idx]}, {std_entropy_1_output[idx]}), "
-                f" ({avg_ph_dim_output[idx]}, {std_ph_dim_output[idx]})\n{avg_acc}\n")
+                f"block{idx + 1}, ({avg_e_0_output[idx]}; {std_e_0_output[idx]}), ({avg_e_1_output[idx]}; {std_e_1_output[idx]}),"
+                f" ({avg_entropy_0_output[idx]}; {std_entropy_0_output[idx]}), ({avg_entropy_1_output[idx]}; {std_entropy_1_output[idx]}), "
+                f" ({avg_ph_dim_output[idx]}; {std_ph_dim_output[idx]})\n{avg_acc}\n")
 
 if __name__ == "__main__":
 
     # Evaluate data
     # path_data = "./data"
-    # path_save = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch.txt"
+    # path_save = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack.txt"
     # dataset_name = "mnist"
     # evalDataBatch(path_data, path_save, dataset_name, is_train=False, batch_size=500, no_neighbors=100, metric="geodesic")
 

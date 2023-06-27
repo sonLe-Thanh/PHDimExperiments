@@ -51,6 +51,33 @@ def fgsmAttack(model, input_batch, target_batch, eps, criterion):
     loss.backward()
     return eps * delta.grad.detach().sign()
 
+def pgdAttack(model, input_batch, target_batch, eps, alpha, no_iters, criterion):
+    """
+    Perform Projected gradient descent attack, subject to inf-norm
+
+    :param model:
+    :param input_batch:
+    :param target_batch:
+    :param eps:
+    :param alpha:
+    :param no_iters:
+    :param criterion:
+    """
+    delta = torch.zeros_like(input_batch, requires_grad=True)
+    for k in range(no_iters):
+        output = model(input_batch + delta)
+        pred = torch.max(output.data, 1)[1]
+        # Predict all wrong, don't care
+        if k == 0 and target_batch.item() != pred.item():
+            return None
+        loss = criterion(output, target_batch)
+        loss.backward()
+        # Very small grad => large alpha, not too large or else same as FGSM
+        # print(delta.grad.abs().mean().item())
+        delta.data = (delta + alpha * delta.grad.detach().sign()).clamp(-eps, eps)
+        delta.grad.zero_()
+    return delta.detach()
+
 def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_attack="fgsm", device = "cpu"):
     correct = 0
     adversarial_data = dataset
@@ -60,11 +87,16 @@ def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_
         input_batch, target_batch = input_batch.to(device), target_batch.to(device)
         input_batch.requires_grad = True
 
-        # Restore the data to its original scale
-        delta = fgsmAttack(model, input_batch, target_batch, epsilon, criterion)
+        if type_attack == "fgsm":
+            delta = fgsmAttack(model, input_batch, target_batch, epsilon, criterion)
+        elif type_attack == "pgd":
+            alpha = 1e-2
+            no_iters = 40
+            delta = pgdAttack(model, input_batch, target_batch, epsilon, alpha, no_iters, criterion)
 
         if delta != None:
             # Only care about correct prediction
+            # Restore the data to its original scale
             data_denorm = denormalize(input_batch, device=device)
             perturbed_data = data_denorm + delta
 
@@ -134,13 +166,15 @@ model.eval()
 
 criterion = nn.CrossEntropyLoss().to("cpu")
 
-# createAdversarialData(model, test_loader, criterion, 0.1, data, "fgsm", "cpu")
 # Run test for each epsilon
-mode_attack = "fgsm"
 
+# mode_attack = "fgsm"
+
+mode_attack = "pgd"
 epsilons = [0, .05, .1, .15, .2, .25, .3]
+# epsilons = [.1]
 batch_size = 1000
-save_path = "./results/TopologicalDescriptors/Datasets/MNIST/dataset_batch.txt"
+save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack.txt"
 
 
 for eps in epsilons:
@@ -148,4 +182,4 @@ for eps in epsilons:
     adversarial_test_loader = DataLoader(adversarial_data, batch_size=batch_size, shuffle=False)
     acc = evalModel(model, adversarial_test_loader, "cpu")
     # evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
-    evalDataBatch("", f"mnist_fgsm_{eps}_acc:{acc}",adversarial_data, save_path, mode=1, is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")
+    evalDataBatch("", f"mnist_pgd_{eps}_acc:{acc}",adversarial_data, save_path, mode=1, is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")

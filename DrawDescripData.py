@@ -19,11 +19,10 @@ def drawTopologicalDescriptorData(data_path, save_path):
     no_records = data.shape[0]
 
     # Get information on dataset
-    dataset_name = data[0,0]
-    type_dataset = "Train set" if data[0,1] == True else "Test set"
+    dataset_name = data[0, 0]
+    type_dataset = "Train set" if data[0, 1] == True else "Test set"
 
     # Get information on the calculation
-
 
     no_neighbor_lst = []
     # idx 0: geodesic batchsize 1000| 1: geodesic batchsize 500| 2: euclidean
@@ -55,7 +54,8 @@ def drawTopologicalDescriptorData(data_path, save_path):
         entropy_1_info = data[idx, 8][1:-1].split(";")
         ph_dim_info = data[idx, 9][1:-1].split(";")
 
-        idx_append = 0 if (metric == "geodesic" and batch_size == 1000) else 1 if (metric == "geodesic" and batch_size == 500) else 2
+        idx_append = 0 if (metric == "geodesic" and batch_size == 1000) else 1 if (
+                    metric == "geodesic" and batch_size == 500) else 2
 
         e_0_mean_lst[idx_append].append(float(e_0_info[0]))
         e_0_std_lst[idx_append].append(float(e_0_info[1]))
@@ -80,7 +80,7 @@ def drawTopologicalDescriptorData(data_path, save_path):
 
     plt.plot(no_neighbor_lst, e_0_mean_lst[1], 'bo--')
     plt.fill_between(no_neighbor_lst, np.array(e_0_mean_lst[1]) - np.array(e_0_std_lst[1]),
-                          np.array(e_0_mean_lst[1]) + np.array(e_0_std_lst[1]), alpha=0.4, facecolor="blue")
+                     np.array(e_0_mean_lst[1]) + np.array(e_0_std_lst[1]), alpha=0.4, facecolor="blue")
 
     plt.plot(no_neighbor_lst, [e_0_mean_lst[2][1]] * len(no_neighbor_lst), 'gx-')
     plt.fill_between(no_neighbor_lst, [e_0_mean_lst[2][1] - e_0_std_lst[2][1]] * len(no_neighbor_lst),
@@ -103,7 +103,6 @@ def drawTopologicalDescriptorData(data_path, save_path):
     plt.savefig(save_path + "E_0.png")
     plt.show()
     plt.close()
-
 
     # E_1^1
     plt.plot(no_neighbor_lst, e_1_mean_lst[0], 'ro-')
@@ -211,14 +210,16 @@ def drawTopologicalDescriptorData(data_path, save_path):
 
     plt.plot(no_neighbor_lst, [ph_dim_mean_lst[2][1]] * len(no_neighbor_lst), 'gx-')
     plt.fill_between(no_neighbor_lst, [ph_dim_mean_lst[2][1] - ph_dim_std_lst[2][1]] * len(no_neighbor_lst),
-                     [ph_dim_mean_lst[2][1] + ph_dim_std_lst[2][1]] * len(no_neighbor_lst), alpha=0.4, facecolor="green")
+                     [ph_dim_mean_lst[2][1] + ph_dim_std_lst[2][1]] * len(no_neighbor_lst), alpha=0.4,
+                     facecolor="green")
 
     plt.plot(no_neighbor_lst, [ph_dim_mean_lst[2][0]] * len(no_neighbor_lst), 'yx--')
     plt.fill_between(no_neighbor_lst, [ph_dim_mean_lst[2][0] - ph_dim_std_lst[2][0]] * len(no_neighbor_lst),
                      [ph_dim_mean_lst[2][0] + ph_dim_std_lst[2][0]] * len(no_neighbor_lst), alpha=0.4,
                      facecolor="yellow")
 
-    plt.legend(["Geodesic batch size 1000", "Geodesic batch size 500" , "Euclidean batch size 1000", "Euclidean batch size 500"])
+    plt.legend(["Geodesic batch size 1000", "Geodesic batch size 500", "Euclidean batch size 1000",
+                "Euclidean batch size 500"])
     plt.ylim(0, 30)
     plt.xticks()
     plt.yticks()
@@ -231,7 +232,142 @@ def drawTopologicalDescriptorData(data_path, save_path):
     plt.close()
 
 
+def drawTopologicalDescriptorAdversarialData(data_path, save_path):
+    """
+    Draw from Topological descriptors
 
-path_res = "./results/TopologicalDescriptors/Datasets/CIFAR10/dataset_batch.txt"
-path_save = "./results/Plots/TopologicalDescriptors/Dataset/CIFAR10/Batch/"
-drawTopologicalDescriptorData(path_res, path_save)
+    :param data_path: full path to adversarial data information
+    :param save_path: relative path to folder to save the plots
+    """
+
+    full_files = glob.glob(data_path)
+    data = genfromtxt(full_files[0], delimiter=', ', dtype=str)
+
+    no_records = data.shape[0]
+    dataset_name = data[0, 0].split("_")[0]
+    model_name = data[0, 0].split("_")[3]
+    type_dataset = "Train set" if data[0, 1] is True else "Test set"
+
+    # Get information on the calculation
+    # 0: fgsm attack, 1: pgd attack
+    eps_lst = []
+    acc_lst = [[], []]
+    e_0_mean_lst = [[], []]
+    e_1_mean_lst = [[], []]
+    ph_dim_mean_lst = [[], []]
+
+    e_0_std_lst = [[], []]
+    e_1_std_lst = [[], []]
+    ph_dim_std_lst = [[], []]
+
+    for idx in range(no_records):
+        # Read line by line
+        # Get information on dataset
+        dataset_info = data[idx, 0].split("_")
+        type_attack = dataset_info[1]
+        attack_param = float(dataset_info[2])
+        accuracy = float(dataset_info[4].split(":")[1])
+
+        idx_append = 0 if type_attack == "fgsm" else 1
+        if idx_append == 0:
+            eps_lst.append(attack_param)
+
+        acc_lst[idx_append].append(accuracy)
+
+        e_0_info = data[idx, 5][1:-1].split(";")
+        e_1_info = data[idx, 6][1:-1].split(";")
+
+        ph_dim_info = data[idx, 9][1:-1].split(";")
+
+        e_0_mean_lst[idx_append].append(float(e_0_info[0]))
+        e_0_std_lst[idx_append].append(float(e_0_info[1]))
+
+        e_1_mean_lst[idx_append].append(float(e_1_info[0]))
+        e_1_std_lst[idx_append].append(float(e_1_info[1]))
+
+        ph_dim_mean_lst[idx_append].append(float(ph_dim_info[0]))
+        ph_dim_std_lst[idx_append].append(float(ph_dim_info[1]))
+
+    # Draw
+    # acc
+    plt.plot(eps_lst, acc_lst[0], 'ro-')
+    plt.plot(eps_lst, acc_lst[1], 'bo-')
+
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.xticks()
+    plt.yticks()
+    plt.xlabel("$\epsilon$")
+    plt.ylabel("Accuracy")
+    plt.title(
+        f"Accuracy of {model_name} tested by {dataset_name} under adversarial attack")
+    plt.savefig(save_path + "acc.png")
+    plt.show()
+    plt.close()
+
+    # E_0^1
+    plt.plot(eps_lst, e_0_mean_lst[0], 'ro-')
+    plt.plot(eps_lst, e_0_mean_lst[1], 'bo-')
+
+
+    plt.fill_between(eps_lst, np.array(e_0_mean_lst[0]) - np.array(e_0_std_lst[0]),
+                     np.array(e_0_mean_lst[0]) + np.array(e_0_std_lst[0]), alpha=0.3, facecolor="red")
+    plt.fill_between(eps_lst, np.array(e_0_mean_lst[1]) - np.array(e_0_std_lst[1]),
+                     np.array(e_0_mean_lst[1]) + np.array(e_0_std_lst[1]), alpha=0.3, facecolor="blue")
+
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.xticks()
+    plt.yticks()
+    plt.xlabel("$\epsilon$")
+    plt.ylabel("$E_0^1$")
+    plt.title(
+        f"Total lifetime sum of 0-th homology group of adversarial {dataset_name.upper()}\nCreated by {model_name} and Cross Entropy Loss")
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.savefig(save_path + "E_0.png")
+    plt.show()
+    plt.close()
+
+    # E_1^1
+    plt.plot(eps_lst, e_1_mean_lst[0], 'ro-')
+    plt.plot(eps_lst, e_1_mean_lst[1], 'bo-')
+    plt.fill_between(eps_lst, np.array(e_1_mean_lst[0]) - np.array(e_1_std_lst[0]),
+                     np.array(e_1_mean_lst[0]) + np.array(e_1_std_lst[0]), alpha=0.3, facecolor="red")
+
+    plt.fill_between(eps_lst, np.array(e_1_mean_lst[1]) - np.array(e_1_std_lst[1]),
+                     np.array(e_1_mean_lst[1]) + np.array(e_1_std_lst[1]), alpha=0.3, facecolor="blue")
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.xticks()
+    plt.yticks()
+    plt.xlabel("$\epsilon$")
+    plt.ylabel("$E_1^1$")
+    plt.title(
+         f"Total lifetime sum of 1-st homology group of adversarial {dataset_name.upper()}\nCreated by {model_name} and Cross Entropy Loss")
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.savefig(save_path + "E_1.png")
+    plt.show()
+    plt.close()
+
+
+    # # PH dim
+    plt.plot(eps_lst, ph_dim_mean_lst[0], 'ro-')
+    plt.plot(eps_lst, ph_dim_mean_lst[1], 'bo-')
+    plt.fill_between(eps_lst, np.array(ph_dim_mean_lst[0]) - np.array(ph_dim_std_lst[0]),
+                     np.array(ph_dim_mean_lst[0]) + np.array(ph_dim_std_lst[0]), alpha=0.3, facecolor="red")
+    plt.fill_between(eps_lst, np.array(ph_dim_mean_lst[1]) - np.array(ph_dim_std_lst[1]),
+                     np.array(ph_dim_mean_lst[1]) + np.array(ph_dim_std_lst[1]), alpha=0.3, facecolor="blue")
+
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.xticks()
+    plt.yticks()
+    plt.xlabel("$\epsilon$")
+    plt.ylabel("PH$_dim$")
+    plt.title(
+         f"PH dimension of adversarial {dataset_name.upper()}\nCreated by {model_name} and Cross Entropy Loss")
+    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.savefig(save_path + "PH_dim.png")
+    plt.show()
+    plt.close()
+
+
+path_res = "./results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack.txt"
+path_save = "./results/Plots/TopologicalDescriptors/Dataset/MNIST/AdversarialAttack/"
+drawTopologicalDescriptorAdversarialData(path_res, path_save)
