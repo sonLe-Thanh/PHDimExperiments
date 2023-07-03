@@ -10,6 +10,7 @@ from collections import deque, OrderedDict
 
 from utils import getData
 import numpy as np
+from Attack import *
 
 
 def get_weights(model):
@@ -73,6 +74,7 @@ if __name__ == "__main__":
 
     # Argument for model
     parser.add_argument("--model", default="FC", type=str, help="FC|AlexNet_CIFAR10")
+    parser.add_argument("--adversarial", default=0, type=int, help="0:normal training|1:adversarial training")
 
     # Arguments for optimzer
     parser.add_argument("--optimizer", default="SGD", type=str, help="SGD|Adam")
@@ -145,25 +147,40 @@ if __name__ == "__main__":
     is_stop = False
     path_descp = "results/TrainedModels/AlexNet_MNIST/"
     for epochs in range(1, args.max_epoch + 1):
-    # for epochs in range(1,2):
         print("Epoch % --------------- %")
         for i, (input_batch, label_batch) in enumerate(train_loader):
             input_batch = input_batch.to(args.device)
             label_batch = label_batch.to(args.device)
             model.train()
-            optimizer.zero_grad()
 
-            # Forward pass
-            output = model(input_batch)
 
-            loss = criterion(output, label_batch)
-            # print(loss.item())
+            if args.adversarial == 1:
+                print("Create adversarial examples")
+                # Perform adversarial training
+                epsilon = 0.1
+                delta = fgsmAttack(model, input_batch, label_batch, epsilon, criterion)
+
+                # Restore the data to its original scale
+                data_denorm = denormalize(input_batch, device=args.device)
+                perturbed_data = data_denorm + delta
+                # Clamp to (0,1)
+                perturbed_data = torch.clamp(perturbed_data, 0, 1)
+                # Reapply normalization
+                perturbed_data_normalized = transforms.Normalize((0.1307,), (0.3081,))(perturbed_data)
+
+                output_perturbed = model(perturbed_data_normalized)
+                loss = criterion(output_perturbed, label_batch)
+            else:
+                # Forward pass
+                output = model(input_batch)
+                loss = criterion(output, label_batch)
+                # print(loss.item())
             if torch.isnan(loss):
                 is_stop = True
 
             # calculate gradients
+            optimizer.zero_grad()
             loss.backward()
-            # Append: idx, val loss, acc
             optimizer.step()
 
             # Get the weigths
@@ -206,7 +223,7 @@ if __name__ == "__main__":
         if train_hist[1] >= 0.98:
             break
     # Save models, save weights
-    torch.save(model.state_dict(), path_descp+"AlexNet1.pth")
-    np.save(path_descp+"AlexNet_Weights1.npy", torch.stack(tuple(weights_hist)).numpy())
+    torch.save(model.state_dict(), path_descp+"AlexNetRobust1.pth")
+    np.save(path_descp+"AlexNetRobust_Weights1.npy", torch.stack(tuple(weights_hist)).numpy())
 
 # python TrainModels.py --max_epoch 100 --batch_size 100 --dataset cifar10_missing --model AlexNet_CIFAR10 --eval_every 2000 --eval_every_acc 100

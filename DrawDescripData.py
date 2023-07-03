@@ -249,16 +249,16 @@ def drawTopologicalDescriptorAdversarialData(data_path, save_path):
     type_dataset = "Train set" if data[0, 1] is True else "Test set"
 
     # Get information on the calculation
-    # 0: fgsm attack, 1: pgd attack
+    # 0: fgsm attack, 1: pgd attack, 2: random attack
     eps_lst = []
-    acc_lst = [[], []]
-    e_0_mean_lst = [[], []]
-    e_1_mean_lst = [[], []]
-    ph_dim_mean_lst = [[], []]
+    acc_lst = [[], [], []]
+    e_0_mean_lst = [[], [], []]
+    e_1_mean_lst = [[], [], []]
+    ph_dim_mean_lst = [[], [], []]
 
-    e_0_std_lst = [[], []]
-    e_1_std_lst = [[], []]
-    ph_dim_std_lst = [[], []]
+    e_0_std_lst = [[], [], []]
+    e_1_std_lst = [[], [], []]
+    ph_dim_std_lst = [[], [], []]
 
     for idx in range(no_records):
         # Read line by line
@@ -268,7 +268,7 @@ def drawTopologicalDescriptorAdversarialData(data_path, save_path):
         attack_param = float(dataset_info[2])
         accuracy = float(dataset_info[4].split(":")[1])
 
-        idx_append = 0 if type_attack == "fgsm" else 1
+        idx_append = 0 if type_attack == "fgsm" else 1 if type_attack == "pgd" else 2
         if idx_append == 0:
             eps_lst.append(attack_param)
 
@@ -292,8 +292,9 @@ def drawTopologicalDescriptorAdversarialData(data_path, save_path):
     # acc
     plt.plot(eps_lst, acc_lst[0], 'ro-')
     plt.plot(eps_lst, acc_lst[1], 'bo-')
+    plt.plot(eps_lst, acc_lst[2], 'go-')
 
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.legend(["Fast gradient sign", "Projected gradient descent", "Random noise"])
     plt.xticks()
     plt.yticks()
     plt.xlabel("$\epsilon$")
@@ -307,21 +308,23 @@ def drawTopologicalDescriptorAdversarialData(data_path, save_path):
     # E_0^1
     plt.plot(eps_lst, e_0_mean_lst[0], 'ro-')
     plt.plot(eps_lst, e_0_mean_lst[1], 'bo-')
+    plt.plot(eps_lst, e_0_mean_lst[2], 'go-')
 
 
     plt.fill_between(eps_lst, np.array(e_0_mean_lst[0]) - np.array(e_0_std_lst[0]),
                      np.array(e_0_mean_lst[0]) + np.array(e_0_std_lst[0]), alpha=0.3, facecolor="red")
     plt.fill_between(eps_lst, np.array(e_0_mean_lst[1]) - np.array(e_0_std_lst[1]),
                      np.array(e_0_mean_lst[1]) + np.array(e_0_std_lst[1]), alpha=0.3, facecolor="blue")
+    plt.fill_between(eps_lst, np.array(e_0_mean_lst[2]) - np.array(e_0_std_lst[2]),
+                     np.array(e_0_mean_lst[2]) + np.array(e_0_std_lst[2]), alpha=0.3, facecolor="green")
 
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.legend(["Fast gradient sign", "Projected gradient descent", "Random noise"])
     plt.xticks()
     plt.yticks()
     plt.xlabel("$\epsilon$")
     plt.ylabel("$E_0^1$")
     plt.title(
         f"Total lifetime sum of 0-th homology group of adversarial {dataset_name.upper()}\nCreated by {model_name} and Cross Entropy Loss")
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
     plt.savefig(save_path + "E_0.png")
     plt.show()
     plt.close()
@@ -329,19 +332,21 @@ def drawTopologicalDescriptorAdversarialData(data_path, save_path):
     # E_1^1
     plt.plot(eps_lst, e_1_mean_lst[0], 'ro-')
     plt.plot(eps_lst, e_1_mean_lst[1], 'bo-')
+    plt.plot(eps_lst, e_1_mean_lst[2], 'go-')
     plt.fill_between(eps_lst, np.array(e_1_mean_lst[0]) - np.array(e_1_std_lst[0]),
                      np.array(e_1_mean_lst[0]) + np.array(e_1_std_lst[0]), alpha=0.3, facecolor="red")
 
     plt.fill_between(eps_lst, np.array(e_1_mean_lst[1]) - np.array(e_1_std_lst[1]),
                      np.array(e_1_mean_lst[1]) + np.array(e_1_std_lst[1]), alpha=0.3, facecolor="blue")
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.fill_between(eps_lst, np.array(e_1_mean_lst[2]) - np.array(e_1_std_lst[2]),
+                     np.array(e_1_mean_lst[2]) + np.array(e_1_std_lst[2]), alpha=0.3, facecolor="green")
+    plt.legend(["Fast gradient sign", "Projected gradient descent", "Random noise"])
     plt.xticks()
     plt.yticks()
     plt.xlabel("$\epsilon$")
     plt.ylabel("$E_1^1$")
     plt.title(
          f"Total lifetime sum of 1-st homology group of adversarial {dataset_name.upper()}\nCreated by {model_name} and Cross Entropy Loss")
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
     plt.savefig(save_path + "E_1.png")
     plt.show()
     plt.close()
@@ -350,24 +355,135 @@ def drawTopologicalDescriptorAdversarialData(data_path, save_path):
     # # PH dim
     plt.plot(eps_lst, ph_dim_mean_lst[0], 'ro-')
     plt.plot(eps_lst, ph_dim_mean_lst[1], 'bo-')
+    plt.plot(eps_lst, ph_dim_mean_lst[2], 'go-')
     plt.fill_between(eps_lst, np.array(ph_dim_mean_lst[0]) - np.array(ph_dim_std_lst[0]),
                      np.array(ph_dim_mean_lst[0]) + np.array(ph_dim_std_lst[0]), alpha=0.3, facecolor="red")
     plt.fill_between(eps_lst, np.array(ph_dim_mean_lst[1]) - np.array(ph_dim_std_lst[1]),
                      np.array(ph_dim_mean_lst[1]) + np.array(ph_dim_std_lst[1]), alpha=0.3, facecolor="blue")
+    plt.fill_between(eps_lst, np.array(ph_dim_mean_lst[2]) - np.array(ph_dim_std_lst[2]),
+                     np.array(ph_dim_mean_lst[2]) + np.array(ph_dim_std_lst[2]), alpha=0.3, facecolor="green")
 
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
+    plt.legend(["Fast gradient sign", "Projected gradient descent", "Random noise"])
     plt.xticks()
     plt.yticks()
     plt.xlabel("$\epsilon$")
     plt.ylabel("PH$_dim$")
     plt.title(
          f"PH dimension of adversarial {dataset_name.upper()}\nCreated by {model_name} and Cross Entropy Loss")
-    plt.legend(["Fast gradient sign", "Projected gradient descent"])
     plt.savefig(save_path + "PH_dim.png")
     plt.show()
     plt.close()
 
+def drawTopologicalDescriptorAcrossDataClass(data_path, save_path):
+    """
+    Draw from Topological descriptors
 
-path_res = "./results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack.txt"
+    :param data_path: full path to across data class information
+    :param save_path: relative path to folder to save the plots
+    """
+
+    full_files = glob.glob(data_path)
+    data = genfromtxt(full_files[0], delimiter=', ', dtype=str)
+
+    no_records = data.shape[0]
+    dataset_name = data[0, 0].split("_")[0]
+    type_dataset = "Train set" if data[0, 1] is True else "Test set"
+
+    # Get information on the calculation
+    class_idx = []
+    e_0_mean_lst = []
+    e_1_mean_lst = []
+    ph_dim_mean_lst = []
+
+    e_0_std_lst = []
+    e_1_std_lst = []
+    ph_dim_std_lst = []
+    e_0_mean = 0
+    e_0_std = 0
+    e_1_mean = 0
+    e_1_std = 0
+    ph_dim_mean = 0
+    ph_dim_std = 0
+    for idx in range(no_records):
+        # Read line by line
+        e_0_info = data[idx, 5][1:-1].split(";")
+        e_1_info = data[idx, 6][1:-1].split(";")
+
+        ph_dim_info = data[idx, 9][1:-1].split(";")
+        # Get information on dataset
+        dataset_info = data[idx, 0].split("_")
+        if len(dataset_info) > 1:
+            class_idx.append(int(dataset_info[1][-1]))
+            e_0_mean_lst.append(float(e_0_info[0]))
+            e_0_std_lst.append(float(e_0_info[1]))
+
+            e_1_mean_lst.append(float(e_1_info[0]))
+            e_1_std_lst.append(float(e_1_info[1]))
+
+            ph_dim_mean_lst.append(float(ph_dim_info[0]))
+            ph_dim_std_lst.append(float(ph_dim_info[1]))
+        else:
+            # The average over dataset
+            e_0_mean = float(e_0_info[0])
+            e_0_std = float(e_0_info[1])
+            e_1_mean = float(e_1_info[0])
+            e_1_std = float(e_1_info[1])
+            ph_dim_mean = float(ph_dim_info[0])
+            ph_dim_std = float(ph_dim_info[1])
+
+    # Draw
+    # E_0^1
+    plt.plot(class_idx, [e_0_mean] * len(class_idx), 'r-')
+    plt.scatter(class_idx, e_0_mean_lst, c='b', marker='o')
+    plt.fill_between(class_idx, [e_0_mean - e_0_std] * len(class_idx),
+                     [e_0_mean + e_0_std] * len(class_idx), alpha=0.3, facecolor="red")
+
+    plt.xticks(np.arange(0, int(class_idx[-1])+1, 1.0))
+    plt.yticks()
+    plt.xlabel("Class")
+    plt.ylabel("$E_0^1$")
+    plt.title(
+        f"Total lifetime sum of 0-th homology group of classes of {dataset_name.upper()}")
+    plt.legend(["Average"])
+    plt.savefig(save_path + "E_0.png")
+    plt.show()
+    plt.close()
+
+    # E_1^1
+    plt.plot(class_idx, [e_1_mean] * len(class_idx), 'r-')
+    plt.scatter(class_idx, e_1_mean_lst, c='b', marker='o')
+    plt.fill_between(class_idx, [e_1_mean - e_1_std] * len(class_idx),
+                     [e_1_mean + e_1_std] * len(class_idx), alpha=0.3, facecolor="red")
+
+    plt.xticks(np.arange(0, int(class_idx[-1])+1, 1.0))
+    plt.yticks()
+    plt.xlabel("Class")
+    plt.ylabel("$E_1^1$")
+    plt.title(
+        f"Total lifetime sum of 1-st homology group of classes of {dataset_name.upper()}")
+    plt.legend(["Average"])
+    plt.savefig(save_path + "E_1.png")
+    plt.show()
+    plt.close()
+
+    # PH dim
+    plt.plot(class_idx, [ph_dim_mean] * len(class_idx), 'r-')
+    plt.errorbar(class_idx, ph_dim_mean_lst, yerr=ph_dim_std_lst, fmt="bo", elinewidth=0.5)
+    # plt.scatter(class_idx, ph_dim_mean_lst, c='b', marker='o')
+    plt.fill_between(class_idx, [ph_dim_mean - ph_dim_std] * len(class_idx),
+                     [ph_dim_mean + ph_dim_std] * len(class_idx), alpha=0.3, facecolor="red")
+
+    plt.xticks(np.arange(0, int(class_idx[-1])+1, 1.0))
+    plt.yticks()
+    plt.xlabel("Class")
+    plt.ylabel("$E_0^1$")
+    plt.title(
+        f"PH dim of classes of {dataset_name.upper()}")
+    plt.legend(["Average"])
+    plt.savefig(save_path + "PH_dim.png")
+    plt.show()
+    plt.close()
+
+path_res = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack_normal.txt"
 path_save = "./results/Plots/TopologicalDescriptors/Dataset/MNIST/AdversarialAttack/"
 drawTopologicalDescriptorAdversarialData(path_res, path_save)

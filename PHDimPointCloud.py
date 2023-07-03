@@ -161,14 +161,11 @@ def computePersistenceHomology(data, max_dimen=1, no_threads = 4, metric="euclid
     return diagrams['dgms']
 
 def plotting(dimension, alpha, log_n, log_alpha_sum, estimated_dimension, LR_fitted, type_data):
-    if type(LR_fitted) == list:
-        log_alpha_sum_pred = LR_fitted[0] * log_n + LR_fitted[1]
-    else:
-        log_alpha_sum_pred = LR_fitted.predict(log_n)
+    log_alpha_sum_pred = LR_fitted[0] * log_n + LR_fitted[1]
     plt.scatter(log_n, log_alpha_sum, color="blue", marker="o")
     plt.plot(log_n, log_alpha_sum_pred, color="red", linewidth=3)
-    plt.legend(["Predicted data", "Calculated data"], loc="best")
+    plt.legend(["Calculated data", "Fitted line"], loc="best")
     plt.xlabel("log(n)")
-    plt.ylabel(f"log(E^{alpha}_{dimension}(PH))")
+    plt.ylabel(f"log($E^{alpha}_{dimension}$(X))")
     plt.title(
         f"Predicted dimension {estimated_dimension} with the slope of {(estimated_dimension - 1) / estimated_dimension}\n of a " + type_data)

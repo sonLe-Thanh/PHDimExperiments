@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torch.utils.data.dataset import random_split
 from torchvision import datasets, transforms
 from PHDimPointCloud import *
-from old_experiments.TestSets import sampleDiskND
+from TestSets import sampleDiskND
 
 normalized = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 to_tensor = transforms.ToTensor()

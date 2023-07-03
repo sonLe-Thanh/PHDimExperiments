@@ -170,9 +170,10 @@ def evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False
         ph_dim_std_batch_lst = []
         for batch, _ in test_data_loader:
             transformed_data = batch
-            batch_size = transformed_data.size(0)
+            # In case each class have uneven size (1020,...)
+            real_size_batch = transformed_data.size(0)
 
-            transformed_data_reshape = transformed_data.view(batch_size, -1).detach().cpu().numpy()
+            transformed_data_reshape = transformed_data.view(real_size_batch, -1).detach().cpu().numpy()
             # Build the distance matrix
             dist_matrix = cdist(transformed_data_reshape, transformed_data_reshape, metric="minkowski")
             if metric == "euclidean":
@@ -204,9 +205,19 @@ def evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False
             ph_dim_mean_batch_lst.append(ph_dim_info[0])
             ph_dim_std_batch_lst.append(ph_dim_info[1])
 
+            # Save the information for comparison
+            with open(save_path, 'a') as file:
+                print("Write file")
+                if metric == "geodesic":
+                    file.write(
+                        f"{dataset_name}_class{idx}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0}; 0), ({e_1}; 0), ({entropy_0}; 0), ({entropy_1}; 0), ({ph_dim_info[0]}; {ph_dim_info[1]})\n")
+                elif metric == "euclidean":
+                    file.write(
+                        f"{dataset_name}_class{idx}, {is_train}, {metric}, {batch_size}, ({e_0}; 0), ({e_1}; 0), ({entropy_0}; 0), ({entropy_1}; 0), ({ph_dim_info[0]}; {ph_dim_info[1]})\n")
+
         # Average over the batches and append
-        e_0_lst.append(np.average(entropy_0_batch_lst))
-        e_1_lst.append(np.average(entropy_1_batch_lst))
+        e_0_lst.append(np.average(e_0_batch_lst))
+        e_1_lst.append(np.average(e_1_batch_lst))
         entropy_0_lst.append(np.average(entropy_0_batch_lst))
         entropy_1_lst.append(np.average(entropy_1_batch_lst))
         ph_dim_mean_lst.append(np.average(ph_dim_mean_batch_lst))
@@ -222,7 +233,7 @@ def evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False
     with open(save_path, 'a') as file:
         print("Write file")
         if metric == "geodesic":
-            file.write(f"{dataset_name}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+            file.write(f"{dataset_name}, {is_train}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}; {ph_dim_std})\n")
         elif metric == "euclidean":
             file.write(
                 f"{dataset_name}, {is_train}, {metric}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}; {ph_dim_std})\n")
@@ -512,10 +523,12 @@ def evalOutputLayers(model_path, save_path, data_path, dataset, evaluate_batch_s
 if __name__ == "__main__":
 
     # Evaluate data
-    # path_data = "./data"
-    # path_save = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack.txt"
-    # dataset_name = "mnist"
-    # evalDataBatch(path_data, path_save, dataset_name, is_train=False, batch_size=500, no_neighbors=100, metric="geodesic")
+    path_data = "./data"
+    path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/dataset_across_class_2.txt"
+    dataset_name = "cifar10"
+    # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
+    #          metric="geodesic")
+    evalData(path_data, dataset_name, None, path_save, mode=0, is_train=False, batch_size=1300, no_neighbors=100, metric="geodesic")
 
     # Note for evaluation on data
     # Data tested: CIFAR10 testset: 10k samples for 10 classes. Entropy and E has some correlation (almost identical). Std smaller
@@ -543,6 +556,6 @@ if __name__ == "__main__":
 
 
     # Evaluate the model weights
-    path_weights = "results/TrainedModels/AlexNet_MNIST/AlexNet_Weights1.npy"
-    path_save = "./results/TopologicalDescriptors/AlexNet/MNIST_Trained/weights.txt"
-    evalModelWeights(path_weights, path_save)
+    # path_weights = "results/TrainedModels/AlexNet_MNIST/AlexNet_Weights1.npy"
+    # path_save = "./results/TopologicalDescriptors/AlexNet/MNIST_Trained/weights.txt"
+    # evalModelWeights(path_weights, path_save)

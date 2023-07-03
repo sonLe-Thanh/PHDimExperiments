@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from models.AlexNet import AlexNet
 from ComputeTopoDescriptors import *
+from copy import deepcopy
 
 def denormalize(batch, mean=[0.1307], std=[0.3081], device = "cpu"):
     """
@@ -29,6 +30,19 @@ def denormalize(batch, mean=[0.1307], std=[0.3081], device = "cpu"):
 
     return batch * std.view(1, -1, 1, 1) + mean.view(1, -1, 1, 1)
 
+def randomAttack(input_batch, eps):
+    """
+    Adding uniform noise to the input batch
+
+    :param input_batch:
+    :param target_batch:
+    :param eps:
+    :return:
+    """
+    # Uniformly genrate from [-1 1]
+    delta = (-1 - 1) * torch.rand_like(input_batch) + 1
+    return eps * delta.detach()
+
 def fgsmAttack(model, input_batch, target_batch, eps, criterion):
     """
     FGSM from input batch
@@ -42,11 +56,11 @@ def fgsmAttack(model, input_batch, target_batch, eps, criterion):
     """
     delta = torch.zeros_like(input_batch, requires_grad=True)
     output = model(input_batch + delta)
-    pred = torch.max(output.data, 1)[1]
+    # pred = torch.max(output.data, 1)[1]
 
     # Predict all wrong, don't care
-    if target_batch.item() != pred.item():
-        return None
+    # if target_batch.item() != pred.item():
+    #     return None
     loss = criterion(output, target_batch)
     loss.backward()
     return eps * delta.grad.detach().sign()
@@ -93,6 +107,8 @@ def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_
             alpha = 1e-2
             no_iters = 40
             delta = pgdAttack(model, input_batch, target_batch, epsilon, alpha, no_iters, criterion)
+        elif type_attack == "random":
+            delta = randomAttack(input_batch, epsilon)
 
         if delta != None:
             # Only care about correct prediction
@@ -146,40 +162,75 @@ def evalModel(model, test_loader, device="cpu"):
     return correct / total_point
 
 
-test_loader = DataLoader(datasets.MNIST('./data',
-                                        train=False, download=True, transform=transforms.Compose([
-                                                    transforms.ToTensor(),
-                                                    transforms.Normalize((0.1307,), (0.3081,)),])),
-                                        batch_size=1, shuffle=False)
-data = datasets.MNIST('./data', train=False, download=True, transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)),]))
+def createAdversarialDataDouble(model, test_loader, criterion, epsilon, dataset, type_attack="fgsm", device = "cpu"):
+    adversarial_data_1 = deepcopy(dataset)
+    adversarial_data_2 = deepcopy(dataset)
+    for idx, (input_batch, target_batch) in enumerate(test_loader):
+        input_batch, target_batch = input_batch.to(device), target_batch.to(device)
+        input_batch.requires_grad = True
+
+        if type_attack == "random":
+            delta_1 = randomAttack(input_batch, epsilon)
+            delta_2 = randomAttack(input_batch, epsilon)
+
+        if delta_1 != None and delta_2 != None:
+            # Only care about correct prediction
+            # Restore the data to its original scale
+            data_denorm = denormalize(input_batch, device=device)
+            perturbed_data_1 = data_denorm + delta_1
+            perturbed_data_2 = perturbed_data_1 + delta_2
+
+            # Clamp to (0,1)
+            perturbed_data_1 = torch.clamp(perturbed_data_1, 0, 1)
+            perturbed_data_2 = torch.clamp(perturbed_data_2, 0, 1)
+
+            # Replace the original from the dataset
+            # perturbed_img = denormalize(perturbed_data_normalized, device=device) * 255
+            perturbed_img_1 = (perturbed_data_1 * 255).clone().detach()
+            perturbed_img_2 = (perturbed_data_2 * 255).clone().detach()
+            adversarial_data_1.data[idx] = perturbed_img_1
+            adversarial_data_2.data[idx] = perturbed_img_2
 
 
-torch.manual_seed(42)
+    # Return the accuracy and an adversarial example
+    return 0, adversarial_data_1, adversarial_data_2
+
+if __name__ == "__main__":
+    test_loader = DataLoader(datasets.MNIST('./data',
+                                            train=False, download=True, transform=transforms.Compose([
+                                                        transforms.ToTensor(),
+                                                        transforms.Normalize((0.1307,), (0.3081,)),])),
+                                            batch_size=1, shuffle=False)
+    data = datasets.MNIST('./data', train=False, download=True, transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)),]))
 
 
-pretrained_model = "./results/TrainedModels/AlexNet_MNIST/AlexNet1.pth"
-
-model = AlexNet(input_height=28, input_width=28, input_channels=1, no_class=10).to("cpu")
-model.load_state_dict(torch.load(pretrained_model))
-model.eval()
+    torch.manual_seed(42)
 
 
-criterion = nn.CrossEntropyLoss().to("cpu")
+    pretrained_model = "./results/TrainedModels/AlexNet_MNIST/AlexNetRobust1.pth"
 
-# Run test for each epsilon
-
-# mode_attack = "fgsm"
-
-mode_attack = "pgd"
-epsilons = [0, .05, .1, .15, .2, .25, .3]
-# epsilons = [.1]
-batch_size = 1000
-save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack.txt"
+    model = AlexNet(input_height=28, input_width=28, input_channels=1, no_class=10).to("cpu")
+    model.load_state_dict(torch.load(pretrained_model))
+    model.eval()
 
 
-for eps in epsilons:
-    _, adversarial_data = createAdversarialData(model, test_loader, criterion, eps, data, mode_attack, "cpu")
-    adversarial_test_loader = DataLoader(adversarial_data, batch_size=batch_size, shuffle=False)
-    acc = evalModel(model, adversarial_test_loader, "cpu")
-    # evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
-    evalDataBatch("", f"mnist_pgd_{eps}_acc:{acc}",adversarial_data, save_path, mode=1, is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")
+    criterion = nn.CrossEntropyLoss().to("cpu")
+
+    # Run test for each epsilon
+
+    mode_attack = "fgsm"
+
+    # mode_attack = "random"
+    epsilons = [0, .05, .1, .15, .2, .25, .3]
+    # epsilons = [.1]
+    batch_size = 1000
+    save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack_adversarial_training.txt"
+
+
+    for eps in epsilons:
+        print("....")
+        _, adversarial_data = createAdversarialData(model, test_loader, criterion, eps, data, mode_attack, "cpu")
+        adversarial_test_loader = DataLoader(adversarial_data, batch_size=batch_size, shuffle=False)
+        acc = evalModel(model, adversarial_test_loader, "cpu")
+        # evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
+        evalDataBatch("", f"mnist_{mode_attack}_{eps}_AlexNetRobust_acc:{acc}", adversarial_data, save_path, mode=1, is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")
