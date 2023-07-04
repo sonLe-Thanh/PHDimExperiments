@@ -11,7 +11,8 @@ from models.AlexNet import AlexNet
 from ComputeTopoDescriptors import *
 from copy import deepcopy
 
-def denormalize(batch, mean=[0.1307], std=[0.3081], device = "cpu"):
+
+def denormalize(batch, mean=[0.1307], std=[0.3081], device="cpu"):
     """
     Convert a batch of tensors to their original scale.
 
@@ -30,6 +31,7 @@ def denormalize(batch, mean=[0.1307], std=[0.3081], device = "cpu"):
 
     return batch * std.view(1, -1, 1, 1) + mean.view(1, -1, 1, 1)
 
+
 def randomAttack(input_batch, eps):
     """
     Adding uniform noise to the input batch
@@ -42,6 +44,7 @@ def randomAttack(input_batch, eps):
     # Uniformly genrate from [-1 1]
     delta = (-1 - 1) * torch.rand_like(input_batch) + 1
     return eps * delta.detach()
+
 
 def fgsmAttack(model, input_batch, target_batch, eps, criterion):
     """
@@ -64,6 +67,7 @@ def fgsmAttack(model, input_batch, target_batch, eps, criterion):
     loss = criterion(output, target_batch)
     loss.backward()
     return eps * delta.grad.detach().sign()
+
 
 def pgdAttack(model, input_batch, target_batch, eps, alpha, no_iters, criterion):
     """
@@ -92,9 +96,10 @@ def pgdAttack(model, input_batch, target_batch, eps, alpha, no_iters, criterion)
         delta.grad.zero_()
     return delta.detach()
 
-def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_attack="fgsm", device = "cpu"):
+
+def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_attack="fgsm", device="cpu"):
     correct = 0
-    adversarial_data = dataset
+    adversarial_data = deepcopy(dataset)
     for idx, (input_batch, target_batch) in enumerate(test_loader):
         # if idx > 0:
         #     break
@@ -129,7 +134,11 @@ def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_
             # Replace the original from the dataset
             # perturbed_img = denormalize(perturbed_data_normalized, device=device) * 255
             perturbed_img = (perturbed_data * 255).clone().detach()
-            adversarial_data.data[idx] = perturbed_img
+            if hasattr(adversarial_data, "data"):
+                print(idx)
+                adversarial_data.data[idx] = perturbed_img
+            else:
+                adversarial_data[idx][0] = perturbed_img
 
     final_acc = correct / float(len(test_loader))
     print(f"Epsilon: {epsilon}\tTest Accuracy = {correct} / {len(test_loader)} = {final_acc}")
@@ -137,7 +146,84 @@ def createAdversarialData(model, test_loader, criterion, epsilon, dataset, type_
     # Return the accuracy and an adversarial example
     return final_acc, adversarial_data
 
+def purifyData(model, test_loader, dataset, prob = 0., device="cpu"):
+    correct_idx = []
+    for idx, (input_batch, target_batch) in enumerate(test_loader):
+        input_batch, target_batch = input_batch.to(device), target_batch.to(device)
+        output = model(input_batch)
+        pred = torch.max(output.data, 1)[1]
+        # Randomizely added
+        random_val = np.random.rand()
+        if random_val < prob:
+            continue
+        if target_batch.item() == pred.item():
+            # Add if all correct
+            correct_idx.append(idx)
+    pure_dataset = Subset(dataset, correct_idx)
+    return pure_dataset
 
+
+def createAdversarialDataOneClass(model, test_loader, criterion, epsilon, dataset, class_idx_lst, type_attack="fgsm", device="cpu"):
+    """
+
+    :param model:
+    :param test_loader: Whole dataset loader
+    :param criterion:
+    :param epsilon:
+    :param dataset:
+    :param class_idx_lst:
+    :param type_attack:
+    :param device:
+    :return:
+    """
+    correct = 0
+    adversarial_data = deepcopy(dataset)
+    for idx, (input_batch, target_batch) in enumerate(test_loader):
+        if idx not in class_idx_lst:
+            continue
+        # if idx > 0:
+        #     break
+        input_batch, target_batch = input_batch.to(device), target_batch.to(device)
+        input_batch.requires_grad = True
+
+        if type_attack == "fgsm":
+            delta = fgsmAttack(model, input_batch, target_batch, epsilon, criterion)
+        elif type_attack == "pgd":
+            alpha = 1e-2
+            no_iters = 40
+            delta = pgdAttack(model, input_batch, target_batch, epsilon, alpha, no_iters, criterion)
+        elif type_attack == "random":
+            delta = randomAttack(input_batch, epsilon)
+
+        if delta != None:
+            # Only care about correct prediction
+            # Restore the data to its original scale
+            data_denorm = denormalize(input_batch, device=device)
+            perturbed_data = data_denorm + delta
+
+            # Clamp to (0,1)
+            perturbed_data = torch.clamp(perturbed_data, 0, 1)
+            # Reapply normalization
+            perturbed_data_normalized = transforms.Normalize((0.1307,), (0.3081,))(perturbed_data)
+            output = model(perturbed_data_normalized)
+            # Re-classify the perturbed image
+            final_pred = torch.max(output.data, 1)[1]
+            if final_pred.item() == target_batch.item():
+                correct += 1
+
+            # Replace the original from the dataset
+            # perturbed_img = denormalize(perturbed_data_normalized, device=device) * 255
+            perturbed_img = (perturbed_data * 255).clone().detach()
+            if hasattr(adversarial_data, "data"):
+                adversarial_data.data[idx] = perturbed_img
+            else:
+                adversarial_data[idx][0] = perturbed_img
+
+    final_acc = correct / float(len(class_idx_lst))
+    print(f"Epsilon: {epsilon}\tTest Accuracy = {correct} / {len(class_idx_lst)} = {final_acc}")
+
+    # Return the accuracy and an adversarial example
+    return final_acc, adversarial_data
 
 
 def evalModel(model, test_loader, device="cpu"):
@@ -149,8 +235,6 @@ def evalModel(model, test_loader, device="cpu"):
         #     break
         print(f"Batch {idx}")
         input_batch, target_batch = input_batch.to(device), target_batch.to(device)
-
-
         output = model(input_batch)
         pred = torch.max(output.data, 1)[1]
 
@@ -162,75 +246,58 @@ def evalModel(model, test_loader, device="cpu"):
     return correct / total_point
 
 
-def createAdversarialDataDouble(model, test_loader, criterion, epsilon, dataset, type_attack="fgsm", device = "cpu"):
-    adversarial_data_1 = deepcopy(dataset)
-    adversarial_data_2 = deepcopy(dataset)
-    for idx, (input_batch, target_batch) in enumerate(test_loader):
-        input_batch, target_batch = input_batch.to(device), target_batch.to(device)
-        input_batch.requires_grad = True
-
-        if type_attack == "random":
-            delta_1 = randomAttack(input_batch, epsilon)
-            delta_2 = randomAttack(input_batch, epsilon)
-
-        if delta_1 != None and delta_2 != None:
-            # Only care about correct prediction
-            # Restore the data to its original scale
-            data_denorm = denormalize(input_batch, device=device)
-            perturbed_data_1 = data_denorm + delta_1
-            perturbed_data_2 = perturbed_data_1 + delta_2
-
-            # Clamp to (0,1)
-            perturbed_data_1 = torch.clamp(perturbed_data_1, 0, 1)
-            perturbed_data_2 = torch.clamp(perturbed_data_2, 0, 1)
-
-            # Replace the original from the dataset
-            # perturbed_img = denormalize(perturbed_data_normalized, device=device) * 255
-            perturbed_img_1 = (perturbed_data_1 * 255).clone().detach()
-            perturbed_img_2 = (perturbed_data_2 * 255).clone().detach()
-            adversarial_data_1.data[idx] = perturbed_img_1
-            adversarial_data_2.data[idx] = perturbed_img_2
-
-
-    # Return the accuracy and an adversarial example
-    return 0, adversarial_data_1, adversarial_data_2
-
 if __name__ == "__main__":
-    test_loader = DataLoader(datasets.MNIST('./data',
-                                            train=False, download=True, transform=transforms.Compose([
-                                                        transforms.ToTensor(),
-                                                        transforms.Normalize((0.1307,), (0.3081,)),])),
-                                            batch_size=1, shuffle=False)
-    data = datasets.MNIST('./data', train=False, download=True, transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)),]))
-
 
     torch.manual_seed(42)
 
-
-    pretrained_model = "./results/TrainedModels/AlexNet_MNIST/AlexNetRobust1.pth"
+    pretrained_model = "./results/TrainedModels/AlexNet_MNIST/AlexNet1.pth"
 
     model = AlexNet(input_height=28, input_width=28, input_channels=1, no_class=10).to("cpu")
     model.load_state_dict(torch.load(pretrained_model))
     model.eval()
 
-
     criterion = nn.CrossEntropyLoss().to("cpu")
+    batch_size = 1300
 
-    # Run test for each epsilon
+    data = datasets.MNIST('./data', train=False, download=True, transform=transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,)), ]))
+
+    test_loader = DataLoader(datasets.MNIST('./data',
+                                            train=False, download=True, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,)), ])),
+                             batch_size=1, shuffle=False)
 
     mode_attack = "fgsm"
 
-    # mode_attack = "random"
     epsilons = [0, .05, .1, .15, .2, .25, .3]
-    # epsilons = [.1]
-    batch_size = 1000
-    save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack_adversarial_training.txt"
 
+    save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_class_attack_normal.txt"
+    ## Adversarial attack part
+    # Run test for each epsilon
+    # for eps in epsilons:
+    #     print("....")
+    #     _, adversarial_data = createAdversarialData(model, test_loader, criterion, eps, data, mode_attack, "cpu")
+    #     adversarial_test_loader = DataLoader(adversarial_data, batch_size=batch_size, shuffle=False)
+    #     acc = evalModel(model, adversarial_test_loader, "cpu")
+    #     evalDataBatch("", f"mnist_{mode_attack}_{eps}_AlexNetRobust_acc:{acc}", adversarial_data, save_path, mode=1,
+    #                   is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")
+    ## End of adversarial attack
 
-    for eps in epsilons:
-        print("....")
-        _, adversarial_data = createAdversarialData(model, test_loader, criterion, eps, data, mode_attack, "cpu")
-        adversarial_test_loader = DataLoader(adversarial_data, batch_size=batch_size, shuffle=False)
-        acc = evalModel(model, adversarial_test_loader, "cpu")
-        # evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
-        evalDataBatch("", f"mnist_{mode_attack}_{eps}_AlexNetRobust_acc:{acc}", adversarial_data, save_path, mode=1, is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")
+    # save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack_normal.txt"
+    # pure_data = purifyData(model, test_loader, data, prob=0.5)
+    # pure_data_loader = DataLoader(pure_data, batch_size=batch_size, shuffle=False)
+    # acc = evalModel(model, pure_data_loader, "cpu")
+    # evalDataBatch("", f"mnist_pure_{0.5}_AlexNet_acc:{acc}", pure_data, save_path, mode=1,
+    #                   is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")
+
+    # Test for each class
+    for i in range(10):
+        class_idx = np.where((np.array(data.targets) == i))[0]
+        for eps in epsilons:
+            _, adversarial_data = createAdversarialDataOneClass(model, test_loader, criterion, eps, data, class_idx, mode_attack, "cpu")
+            test_set_class = Subset(adversarial_data, class_idx)
+            adversarial_test_loader = DataLoader(test_set_class, batch_size=batch_size, shuffle=False)
+            acc = evalModel(model, adversarial_test_loader, "cpu")
+            evalDataBatch("", f"mnist_{mode_attack}_{eps}_AlexNetClass{i}_acc:{acc}", test_set_class, save_path, mode=1,
+                              is_train=False, batch_size=batch_size, no_neighbors=100, metric="geodesic")

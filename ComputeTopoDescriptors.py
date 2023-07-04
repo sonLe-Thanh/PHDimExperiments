@@ -239,13 +239,14 @@ def evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False
                 f"{dataset_name}, {is_train}, {metric}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}; {ph_dim_std})\n")
 
 
-def evalModelWeights(weight_path, save_path):
+def evalModelWeights(weight_path, save_path, info, metric="euclidean"):
     """
     Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
     of a flattened model weights
 
     :param weight_path: full path to weights information, currently only support .npy file
     :param save_path: path to file to saving all these information of the model weights
+    :param info: string, give more information to save
     """
     # path_saved_info = "./results/TrainedModels/AlexNet_CIFAR10/"
     # path_save_des = "./results/TopologicalDescriptors/AlexNet_CIFAR10/CIFAR10_Trained/"
@@ -257,11 +258,29 @@ def evalModelWeights(weight_path, save_path):
 
     # Build the distance matrix beforehand to reduce the computing time
     # dist_matrix = cdist(weight_hist, weight_hist, metric="minkowski")
-
-    # Info on weights space
+    # print("Dist matrix")
+    # if metric == "geodesic":
+    #     # Build the knn graph
+    #     no_neighbors = 100
+    #     kn_graph_builder = KNeighborsGraph(n_neighbors=no_neighbors, mode='distance', metric='precomputed',
+    #                                        n_jobs=4)
+    #     kn_graph = kn_graph_builder.fit_transform(dist_matrix.reshape(1, *dist_matrix.shape))
+    #     kn_graph = kn_graph[0].todense()
+    #     kn_graph[kn_graph == 0] = np.inf
+    #     for i in range(kn_graph.shape[0]):
+    #         kn_graph[i, i] = 0
+    #     kn_graph = np.squeeze(np.asarray(kn_graph))
+    #     # Get the geodesic distance
+    #     geodesic_dist = \
+    #         GraphGeodesicDistance(directed=False, n_jobs=4).fit_transform(kn_graph.reshape(1, *kn_graph.shape))[0]
+    #
+    #     e_0_w, e_1_w, entropy_0_w, entropy_1_w, ph_dim_info_w = computeTopologyDescriptors(geodesic_dist, 1, 1.0,
+    #                                                                              metric="precomputed")
+    # else:
     e_0_w, e_1_w, entropy_0_w, entropy_1_w, ph_dim_info_w = computeTopologyDescriptors(weight_hist, 1, 1.0)
+
     with open(save_path, 'a') as file:
-        file.write(f"weights, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_w}, {ph_dim_info_w}\n")
+        file.write(f"weights_{info}, {e_0_w}, {e_1_w}, {entropy_0_w}, {entropy_1_w}, {ph_dim_info_w}\n")
 
 
 # PH dim on output of each layers
@@ -523,12 +542,12 @@ def evalOutputLayers(model_path, save_path, data_path, dataset, evaluate_batch_s
 if __name__ == "__main__":
 
     # Evaluate data
-    path_data = "./data"
-    path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/dataset_across_class_2.txt"
-    dataset_name = "cifar10"
-    # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
-    #          metric="geodesic")
-    evalData(path_data, dataset_name, None, path_save, mode=0, is_train=False, batch_size=1300, no_neighbors=100, metric="geodesic")
+    # path_data = "./data"
+    # path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/dataset_across_class_2.txt"
+    # dataset_name = "cifar10"
+    # # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
+    # #          metric="geodesic")
+    # evalData(path_data, dataset_name, None, path_save, mode=0, is_train=False, batch_size=1300, no_neighbors=100, metric="geodesic")
 
     # Note for evaluation on data
     # Data tested: CIFAR10 testset: 10k samples for 10 classes. Entropy and E has some correlation (almost identical). Std smaller
@@ -556,6 +575,7 @@ if __name__ == "__main__":
 
 
     # Evaluate the model weights
-    # path_weights = "results/TrainedModels/AlexNet_MNIST/AlexNet_Weights1.npy"
-    # path_save = "./results/TopologicalDescriptors/AlexNet/MNIST_Trained/weights.txt"
-    # evalModelWeights(path_weights, path_save)
+    path_weights = "results/TrainedModels/AlexNet_MNIST/AlexNet_Weights1.npy"
+    path_save = "./results/TopologicalDescriptors/AlexNet/MNIST_Trained/weights.txt"
+    info = "robust"
+    evalModelWeights(path_weights, path_save, info)
