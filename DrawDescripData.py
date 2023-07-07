@@ -683,7 +683,7 @@ def drawTopologicalDescriptorAdversarialDataClass(data_path, save_path):
     plt.plot(eps_lst, acc_lst[0], 'ro-')
     plt.plot(eps_lst, acc_lst[1], 'bo-')
     plt.plot(eps_lst, acc_lst[2], 'go-')
-    plt.plot(eps_lst, acc_lst[2], 'co-')
+    plt.plot(eps_lst, acc_lst[3], 'co-')
     plt.plot(eps_lst, acc_lst[4], 'mo-')
     plt.plot(eps_lst, acc_lst[5], 'ro--')
     plt.plot(eps_lst, acc_lst[6], 'bo--')
@@ -706,7 +706,7 @@ def drawTopologicalDescriptorAdversarialDataClass(data_path, save_path):
     plt.plot(eps_lst, e_0_mean_lst[0], 'ro-')
     plt.plot(eps_lst, e_0_mean_lst[1], 'bo-')
     plt.plot(eps_lst, e_0_mean_lst[2], 'go-')
-    plt.plot(eps_lst, e_0_mean_lst[2], 'co-')
+    plt.plot(eps_lst, e_0_mean_lst[3], 'co-')
     plt.plot(eps_lst, e_0_mean_lst[4], 'mo-')
     plt.plot(eps_lst, e_0_mean_lst[5], 'ro--')
     plt.plot(eps_lst, e_0_mean_lst[6], 'bo--')
@@ -730,7 +730,7 @@ def drawTopologicalDescriptorAdversarialDataClass(data_path, save_path):
     plt.plot(eps_lst, e_1_mean_lst[0], 'ro-')
     plt.plot(eps_lst, e_1_mean_lst[1], 'bo-')
     plt.plot(eps_lst, e_1_mean_lst[2], 'go-')
-    plt.plot(eps_lst, e_1_mean_lst[2], 'co-')
+    plt.plot(eps_lst, e_1_mean_lst[3], 'co-')
     plt.plot(eps_lst, e_1_mean_lst[4], 'mo-')
     plt.plot(eps_lst, e_1_mean_lst[5], 'ro--')
     plt.plot(eps_lst, e_1_mean_lst[6], 'bo--')
@@ -755,7 +755,7 @@ def drawTopologicalDescriptorAdversarialDataClass(data_path, save_path):
     plt.plot(eps_lst, ph_dim_mean_lst[0], 'ro-')
     plt.plot(eps_lst, ph_dim_mean_lst[1], 'bo-')
     plt.plot(eps_lst, ph_dim_mean_lst[2], 'go-')
-    plt.plot(eps_lst, ph_dim_mean_lst[2], 'co-')
+    plt.plot(eps_lst, ph_dim_mean_lst[3], 'co-')
     plt.plot(eps_lst, ph_dim_mean_lst[4], 'mo-')
     plt.plot(eps_lst, ph_dim_mean_lst[5], 'ro--')
     plt.plot(eps_lst, ph_dim_mean_lst[6], 'bo--')
@@ -776,6 +776,6 @@ def drawTopologicalDescriptorAdversarialDataClass(data_path, save_path):
     plt.close()
 
 
-path_res = "results/TopologicalDescriptors/Datasets/MNIST/dataset_batch_attack_adversarial_training.txt"
-path_save = "./results/Plots/TopologicalDescriptors/Dataset/MNIST/AdversarialAttack/AdversarialTraining/"
-drawTopologicalDescriptorAdversarialData2Types(path_res, path_save)
+path_res = "results/TopologicalDescriptors/Datasets/MNIST/TestData/dataset_class_attack_adversarial_training.txt"
+path_save = "./results/Plots/TopologicalDescriptors/Dataset/MNIST/AdversarialAttackClass/AdversarialTraining/"
+drawTopologicalDescriptorAdversarialDataClass(path_res, path_save)

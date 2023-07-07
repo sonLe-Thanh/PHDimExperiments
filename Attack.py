@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
     epsilons = [0, .05, .1, .15, .2, .25, .3]
 
-    save_path = "results/TopologicalDescriptors/Datasets/MNIST/dataset_class_attack_normal.txt"
+    save_path = "results/TopologicalDescriptors/Datasets/MNIST/TestData/dataset_class_attack_normal.txt"
     ## Adversarial attack part
     # Run test for each epsilon
     # for eps in epsilons:

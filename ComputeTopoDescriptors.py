@@ -542,12 +542,12 @@ def evalOutputLayers(model_path, save_path, data_path, dataset, evaluate_batch_s
 if __name__ == "__main__":
 
     # Evaluate data
-    # path_data = "./data"
-    # path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/dataset_across_class_2.txt"
-    # dataset_name = "cifar10"
-    # # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
-    # #          metric="geodesic")
-    # evalData(path_data, dataset_name, None, path_save, mode=0, is_train=False, batch_size=1300, no_neighbors=100, metric="geodesic")
+    path_data = "./data"
+    path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/TrainData/dataset_train_batch.txt"
+    dataset_name = "cifar10"
+    # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
+    #          metric="geodesic")
+    evalDataBatch(path_data, dataset_name, None, path_save, mode=0, is_train=True, batch_size=1000, no_neighbors=100, metric="geodesic")
 
     # Note for evaluation on data
     # Data tested: CIFAR10 testset: 10k samples for 10 classes. Entropy and E has some correlation (almost identical). Std smaller
@@ -575,7 +575,7 @@ if __name__ == "__main__":
 
 
     # Evaluate the model weights
-    path_weights = "results/TrainedModels/AlexNet_MNIST/AlexNet_Weights1.npy"
-    path_save = "./results/TopologicalDescriptors/AlexNet/MNIST_Trained/weights.txt"
-    info = "robust"
-    evalModelWeights(path_weights, path_save, info)
+    # path_weights = "results/TrainedModels/AlexNet_MNIST/AlexNet_Weights1.npy"
+    # path_save = "./results/TopologicalDescriptors/AlexNet/MNIST_Trained/weights.txt"
+    # info = "robust"
+    # evalModelWeights(path_weights, path_save, info)
