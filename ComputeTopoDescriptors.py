@@ -10,6 +10,83 @@ from scipy.spatial.distance import cdist
 from gtda.graphs import KNeighborsGraph, GraphGeodesicDistance
 
 
+def evalDataBatchDirect(dataset_name, dataset, save_path, batch_size=1000, no_neighbors=40, metric="geodesic"):
+    """
+    Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
+    of a dataset, each values averaging across batches
+
+
+    :param dataset_name: name of the dataset
+    :param dataset: the real dataset, numpy array
+    :param save_path: path to file to saving all these information of the dataset
+    :param batch_size: batch size for each class of the data
+    :param no_neighbors: number of neighbors using for the contruction of the k-neighbors graph in geosedic distance
+    :param metric: metric use for the computation of distance matrix, current support: geosedic, euclidean
+    """
+
+
+    # # Changed stategies
+    total_samples = dataset.shape[0]
+    chunk_length = int(total_samples / batch_size)
+    test_data_loader = np.array_split(dataset, chunk_length, axis=0)
+    e_0_batch_lst = []
+    e_1_batch_lst = []
+    entropy_0_batch_lst = []
+    entropy_1_batch_lst = []
+    ph_dim_mean_batch_lst = []
+    ph_dim_std_batch_lst = []
+    for batch in test_data_loader:
+        # print(batch.shape)
+        transformed_data = batch
+
+        # transformed_data_reshape = transformed_data.reshape(batch_size, -1)
+        # Build the distance matrix
+        dist_matrix = cdist(transformed_data, transformed_data, metric="minkowski")
+        if metric == "euclidean":
+            e_0, e_1, entropy_0, entropy_1, ph_dim_info = computeTopologyDescriptors(dist_matrix, 1, 1.0,
+                                                                                     metric="precomputed")
+        elif metric == "geodesic":
+            # Build the knn graph
+            kn_graph_builder = KNeighborsGraph(n_neighbors=no_neighbors, mode='distance', metric='precomputed',
+                                               n_jobs=4)
+            kn_graph = kn_graph_builder.fit_transform(dist_matrix.reshape(1, *dist_matrix.shape))
+            kn_graph = kn_graph[0].todense()
+            kn_graph[kn_graph == 0] = np.inf
+            for i in range(kn_graph.shape[0]):
+                kn_graph[i, i] = 0
+            kn_graph = np.squeeze(np.asarray(kn_graph))
+            # Get the geodesic distance
+            geodesic_dist = \
+                GraphGeodesicDistance(directed=False, n_jobs=4).fit_transform(kn_graph.reshape(1, *kn_graph.shape))[0]
+
+            e_0, e_1, entropy_0, entropy_1, ph_dim_info = computeTopologyDescriptors(geodesic_dist, 1, 1.0,
+                                                                                     metric="precomputed")
+        else:
+            raise ValueError("Unsupported metric")
+        # Add this to the lists
+        e_0_batch_lst.append(e_0)
+        e_1_batch_lst.append(e_1)
+        entropy_0_batch_lst.append(entropy_0)
+        entropy_1_batch_lst.append(entropy_1)
+        ph_dim_mean_batch_lst.append(ph_dim_info[0])
+        ph_dim_std_batch_lst.append(ph_dim_info[1])
+
+    # Average over the classes and save
+    e_0_avg, e_0_std = np.average(e_0_batch_lst), np.std(e_0_batch_lst)
+    e_1_avg, e_1_std = np.average(e_1_batch_lst), np.std(e_1_batch_lst)
+    entropy_0_avg, entropy_0_std = np.average(entropy_0_batch_lst), np.std(entropy_0_batch_lst)
+    entropy_1_avg, entropy_1_std = np.average(entropy_1_batch_lst), np.std(entropy_1_batch_lst)
+    ph_dim_avg, ph_dim_std = np.average(ph_dim_mean_batch_lst), np.std(ph_dim_std_batch_lst)
+
+    with open(save_path, 'a') as file:
+        print("Write file")
+        if metric == "geodesic":
+            file.write(
+                f"{dataset_name}, {metric}, {no_neighbors}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}; {ph_dim_std})\n")
+        elif metric == "euclidean":
+            file.write(
+                f"{dataset_name}, {metric}, {batch_size}, ({e_0_avg}; {e_0_std}), ({e_1_avg}; {e_1_std}), ({entropy_0_avg}; {entropy_0_std}), ({entropy_1_avg}; {entropy_1_std}), ({ph_dim_avg}, {ph_dim_std})\n")
+
 def evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40, metric="geodesic"):
     """
     Compute the topological descriptors (total life time sum, topological entropy of 0-th, 1-st homology groups, PH_0 dim)
@@ -543,13 +620,13 @@ if __name__ == "__main__":
 
     # Evaluate data
     path_data = "./data"
-    path_save = "results/TopologicalDescriptors/Datasets/CIFAR10/TrainData/dataset_train_batch.txt"
-    dataset_name = "cifar10"
+    path_save = "results/TopologicalDescriptors/Datasets/MNIST/TestData/dataset_batch.txt"
+    dataset_name = "mnist"
     # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
     #          metric="geodesic")
-    evalDataBatch(path_data, dataset_name, None, path_save, mode=0, is_train=True, batch_size=1000, no_neighbors=100, metric="geodesic")
+    evalDataBatch(path_data, dataset_name, None, path_save, mode=0, is_train=False, batch_size=1000, no_neighbors=100, metric="geodesic")
 
-    # Note for evaluation on data
+    # Note for evaluation on datar
     # Data tested: CIFAR10 testset: 10k samples for 10 classes. Entropy and E has some correlation (almost identical). Std smaller
     # with the average across classes strategy. The total lifetime sum is pretty stable too.
 
