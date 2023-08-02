@@ -48,17 +48,17 @@ def nearestNeighbors(arr, k):
         neighbors_dist_lst.append(list(dist))
     return neighbors_idx_lst, neighbors_dist_lst
 
-def generateInterpolate(image_channels, model_save_path, batch_size, dataset_name, no_class):
+def generateInterpolate(image_channels, model_save_path, batch_size, no_class):
     # image_channels = 1
     latent_dim = 12
     type_model = 2
     # path_save_imgs = f"./plots/Conv_VAE/VAE2/synthesis_hidden{latent_dim}.png"
     # dataset_name = "MNIST_test"
-    path_save_data_decoder = f"./info/{dataset_name}/decoder.txt"
-    path_save_data_latent = f"./info/{dataset_name}/latent.txt"
-    no_class = 10
+    # path_save_data_decoder = f"./info/{dataset_name}/decoder.txt"
+    # path_save_data_latent = f"./info/{dataset_name}/latent.txt"
+    # no_class = 10
 
-    model_save_path = "./vae/VAE" + str(type_model) + "/vae_hidden" + str(latent_dim) + ".pt"
+    # model_save_path = "./vae/VAE" + str(type_model) + "/vae_hidden" + str(latent_dim) + ".pt"
 
     vae = VAE2(image_channels=image_channels, latent_dim=latent_dim).to("cpu")
     vae.load_state_dict(torch.load(model_save_path))
@@ -67,7 +67,7 @@ def generateInterpolate(image_channels, model_save_path, batch_size, dataset_nam
 
     vae.eval()
 
-    batch_size = 1000
+    # batch_size = 1000
     device = "cpu"
 
     test_loader = torch.utils.data.DataLoader(
@@ -191,8 +191,6 @@ def generateInterpolate(image_channels, model_save_path, batch_size, dataset_nam
         print(f"Class {curr_class}")
         # print(len(class_interpolate_idx))
         for i, class_idx in enumerate(class_interpolate_idx):
-            if i > 0:
-                break
             for ratio in interpolate_ratio_lst:
                 # new_latent = chosen_0 + dir_01 * ratio
                 if interpolate_type == 0:

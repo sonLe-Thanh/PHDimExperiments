@@ -10,7 +10,16 @@ to_tensor = transforms.ToTensor()
 transform_no_aug = transforms.Compose([to_tensor, normalized])
 
 
+class SynthesisData(Dataset):
+    def __init__(self, images, labels):
+        self.images = images
+        self.labels = labels
 
+    def __getitem__(self, idex):
+        return self.images[idex], self.labels[idex]
+
+    def __len__(self):
+        return len(self.labels)
 
 class TestData1(Dataset):
     # Constructor
