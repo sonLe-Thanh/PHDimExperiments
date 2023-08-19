@@ -3,7 +3,7 @@ import argparse
 import torch
 from torch import nn
 from models.FC import FC
-from models.AlexNet import AlexNet
+from models.ResNet import resnet18, resnet34
 
 import torch.optim as optim
 from collections import deque, OrderedDict
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", default="cpu", type=str, help="cpu|gpu")
 
     # Argument for model
-    parser.add_argument("--model", default="FC", type=str, help="FC|AlexNet_CIFAR10")
+    parser.add_argument("--model", default="FC", type=str, help="FC|AlexNet|ResNet18")
     parser.add_argument("--adversarial", default=0, type=int, help="0:normal training|1:adversarial training")
 
     # Arguments for optimzer
@@ -118,6 +118,16 @@ if __name__ == "__main__":
             model = AlexNet(input_height=28, input_width=28, input_channels=1, no_class=no_class).to(args.device)
         else:
             model = AlexNet(no_class=no_class).to(args.device)
+    elif args.model == "ResNet18":
+        if args.dataset == "mnist":
+            model = resnet18(no_class, True)
+        else:
+            model = resnet18(no_class, False)
+    elif args.model == "ResNet34":
+        if args.dataset == "mnist":
+            model = resnet34(no_class, True)
+        else:
+            model = resnet34(no_class, False)
 
     print(model)
     print("....")

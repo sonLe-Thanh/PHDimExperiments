@@ -10,6 +10,9 @@ import torchvision.transforms as transforms
 from scipy.spatial import distance, cKDTree
 from autoencoders.AutoEncoders import VAE1, VAE2
 from ComputeTopoDescriptors import *
+from sklearn.manifold import TSNE, MDS
+from sklearn.decomposition import PCA
+
 np.random.seed(42)
 
 def generateImage(model, save_path, latent_dim=12):
@@ -110,6 +113,7 @@ def generateInterpolate(image_channels, model_save_path, batch_size, no_class):
     #
     # evalDataBatch(dataset_name + f"|VAE_latent{latent_dim}", latent_vec, path_save_data_latent, batch_size=1000, no_neighbors=100,
     #               metric="euclidean")
+
 
     latent_idx_lst = []
     latent_vec_lst = []
