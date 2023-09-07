@@ -1,6 +1,5 @@
 from TestSets import *
 from PHDimPointCloud import *
-import matplotlib.pyplot as plt
 from copy import deepcopy
 import glob
 
@@ -17,7 +16,7 @@ percentage = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5]
 full_files = glob.glob('results/WeightsHistories/*')
 
 for file_name in full_files:
-    # only for AlexNet atm
+    # only for AlexNet_CIFAR10 atm
     train_info = file_name[:-4].split('/')[-1]
     model_name = train_info.split('|')[0]
     dataset_name = train_info.split('|')[1]

@@ -117,6 +117,13 @@ def evalDataBatch(data_path, dataset_name, dataset, save_path, mode=0, is_train=
             test_data = getattr(datasets, data_class)(root=data_path, train=is_train, download=True,
                                                       transform=transforms.Compose(trans))
 
+        elif dataset_name in ["fashion-mnist"]:
+            data_class = "FashionMNIST"
+            no_class = 10
+            trans = [transforms.ToTensor()]
+            test_data = getattr(datasets, data_class)(root=data_path, train=is_train, download=True,
+                                                      transform=transforms.Compose(trans))
+
         else:
             raise ValueError("Dataset not support atm")
     elif mode == 1:
@@ -620,11 +627,11 @@ if __name__ == "__main__":
 
     # Evaluate data
     path_data = "./data"
-    path_save = "results/TopologicalDescriptors/Datasets/MNIST/TestData/dataset_batch.txt"
-    dataset_name = "mnist"
+    path_save = "results/TopologicalDescriptors/Datasets/FashionMNIST/TrainData/dataset_batch.txt"
+    dataset_name = "fashion-mnist"
     # evalData(data_path, dataset_name, dataset, save_path, mode=0, is_train=False, batch_size=1000, no_neighbors=40,
     #          metric="geodesic")
-    evalDataBatch(path_data, dataset_name, None, path_save, mode=0, is_train=False, batch_size=1000, no_neighbors=100, metric="geodesic")
+    evalDataBatch(path_data, dataset_name, None, path_save, mode=0, is_train=True, batch_size=1000, no_neighbors=100, metric="geodesic")
 
     # Note for evaluation on datar
     # Data tested: CIFAR10 testset: 10k samples for 10 classes. Entropy and E has some correlation (almost identical). Std smaller

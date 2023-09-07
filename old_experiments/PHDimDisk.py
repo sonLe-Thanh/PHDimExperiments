@@ -1,8 +1,6 @@
 # Test PH Dim with noise
 
 from TestSets import *
-from PHDimPointCloud import *
-import matplotlib.pyplot as plt
 from copy import deepcopy
 import glob
 from numpy import genfromtxt
